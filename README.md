@@ -1,6 +1,6 @@
 # 🎫 B2B ITSM Ticketing System — Backend API
 
-Sistem ticketing untuk manajemen IT Service Management (ITSM) berbasis B2B. Backend dibangun dengan Spring Boot dan PostgreSQL, mendukung pembuatan ticket dengan validasi kuota maintenance (Preventive & Corrective Maintenance).
+Sistem ticketing untuk manajemen IT Service Management (ITSM) berbasis B2B. Backend dibangun dengan Spring Boot dan PostgreSQL, mendukung **JWT Authentication** dan **Role-Based Access Control (RBAC)** dengan role ADMIN dan USER.
 
 ---
 
@@ -10,8 +10,10 @@ Sistem ticketing untuk manajemen IT Service Management (ITSM) berbasis B2B. Back
 - [Prasyarat](#-prasyarat)
 - [Cara Menjalankan](#-cara-menjalankan)
 - [Konfigurasi](#-konfigurasi)
-- [Database Schema](#-database-schema)
+- [Authentication](#-authentication)
+- [Role-Based Access Control](#-role-based-access-control)
 - [API Endpoints](#-api-endpoints)
+  - [Auth API](#-auth-api)
   - [User API](#-user-api)
   - [Client API](#-client-api)
   - [Client Quota API](#-client-quota-api)
@@ -27,6 +29,8 @@ Sistem ticketing untuk manajemen IT Service Management (ITSM) berbasis B2B. Back
 |-----------|-------|
 | Java | 17+ |
 | Spring Boot | 3.2.5 |
+| Spring Security | 6.x |
+| JWT (JJWT) | 0.12.6 |
 | Spring Data JPA | 3.2.x |
 | PostgreSQL | 15+ |
 | Lombok | Latest |
@@ -46,10 +50,10 @@ Sistem ticketing untuk manajemen IT Service Management (ITSM) berbasis B2B. Back
 
 ```bash
 # 1. Clone repository
-git clone <repository-url>
-cd ticketing-backend
+git clone https://github.com/calpadia/ticketing-springboot-api.git
+cd ticketing-springboot-api
 
-# 2. Konfigurasi database di application.properties (lihat bagian Konfigurasi)
+# 2. Konfigurasi database di application.properties
 
 # 3. Jalankan aplikasi
 mvn spring-boot:run
@@ -68,7 +72,6 @@ Edit file `src/main/resources/application.properties`:
 spring.datasource.url=jdbc:postgresql://localhost:5432/ticketing_db
 spring.datasource.username=postgres
 spring.datasource.password=your_password
-spring.datasource.driver-class-name=org.postgresql.Driver
 
 # JPA / Hibernate
 spring.jpa.hibernate.ddl-auto=update
@@ -77,35 +80,59 @@ spring.jpa.show-sql=true
 
 # Server
 server.port=8080
+
+# JWT Configuration
+jwt.secret=<your-base64-encoded-256-bit-secret-key>
+jwt.expiration=86400000
 ```
 
 ---
 
-## 🗄 Database Schema
+## 🔐 Authentication
 
-### Entity Relationship
+Sistem menggunakan **JWT (JSON Web Token)** untuk autentikasi stateless.
+
+### Alur Autentikasi
 
 ```
-┌─────────────┐       ┌─────────────────┐       ┌─────────────┐
-│   clients    │       │     tickets      │       │    users     │
-├─────────────┤       ├─────────────────┤       ├─────────────┤
-│ id (PK)     │──┐    │ id (PK)         │    ┌──│ id (PK)     │
-│ company_name│  │    │ ticket_number   │    │  │ name        │
-│ is_active   │  ├───>│ client_id (FK)  │    │  │ email       │
-└─────────────┘  │    │ requester_id(FK)│<───┘  │ password    │
-                 │    │ title           │       │ role        │
-┌─────────────┐  │    │ description     │       └─────────────┘
-│client_quotas│  │    │ status          │
-├─────────────┤  │    │ priority        │
-│ id (PK)     │  │    │ maintenance_type│
-│ client_id   │──┘    │ created_at      │
-│ year        │       └─────────────────┘
-│ pm_quota    │
-│ cm_quota    │
-│ pm_used     │
-│ cm_used     │
-└─────────────┘
+1. Register/Login  →  POST /api/v1/auth/register atau /login
+2. Dapatkan Token  →  Response berisi JWT token
+3. Gunakan Token   →  Header: Authorization: Bearer <token>
+4. Akses API       →  Server validasi token + cek role
 ```
+
+### Cara Menggunakan Token
+
+Setelah login/register, tambahkan header berikut di setiap request:
+
+```
+Authorization: Bearer eyJhbGciOiJIUzI1NiJ9...
+```
+
+Token berlaku **24 jam** (dapat dikonfigurasi via `jwt.expiration`).
+
+---
+
+## 🛡 Role-Based Access Control
+
+### Role yang Tersedia
+
+| Role | Deskripsi |
+|------|-----------|
+| `ADMIN` | Full access ke semua fitur sistem |
+| `USER` | Akses terbatas — hanya bisa membuat dan melihat ticket |
+
+### Access Control Matrix
+
+| Endpoint | ADMIN | USER | Public |
+|----------|-------|------|--------|
+| `POST /api/v1/auth/register` | — | — | ✅ |
+| `POST /api/v1/auth/login` | — | — | ✅ |
+| `GET/POST/PUT/DELETE /api/v1/users/**` | ✅ | ❌ | ❌ |
+| `GET/POST/PUT/DELETE /api/v1/clients/**` | ✅ | ❌ | ❌ |
+| `GET/POST/PUT/DELETE /api/v1/client-quotas/**` | ✅ | ❌ | ❌ |
+| `POST /api/v1/tickets` | ✅ | ✅ | ❌ |
+| `GET /api/v1/tickets/**` | ✅ | ✅ | ❌ |
 
 ---
 
@@ -115,45 +142,48 @@ server.port=8080
 
 ### Ringkasan Seluruh API
 
-| Method | Endpoint | Deskripsi |
-|--------|----------|-----------|
-| **USER** | | |
-| `POST` | `/api/v1/users` | Buat user baru |
-| `GET` | `/api/v1/users` | Ambil semua user |
-| `GET` | `/api/v1/users/{id}` | Ambil user berdasarkan ID |
-| `PUT` | `/api/v1/users/{id}` | Update user |
-| `DELETE` | `/api/v1/users/{id}` | Hapus user |
-| **CLIENT** | | |
-| `POST` | `/api/v1/clients` | Buat client baru |
-| `GET` | `/api/v1/clients` | Ambil semua client |
-| `GET` | `/api/v1/clients/{id}` | Ambil client berdasarkan ID |
-| `PUT` | `/api/v1/clients/{id}` | Update client |
-| `DELETE` | `/api/v1/clients/{id}` | Hapus client |
-| **CLIENT QUOTA** | | |
-| `POST` | `/api/v1/client-quotas` | Buat kuota baru |
-| `GET` | `/api/v1/client-quotas` | Ambil semua kuota |
-| `GET` | `/api/v1/client-quotas/{id}` | Ambil kuota berdasarkan ID |
-| `GET` | `/api/v1/client-quotas/client/{clientId}/year/{year}` | Ambil kuota berdasarkan client & tahun |
-| `PUT` | `/api/v1/client-quotas/{id}` | Update kuota |
-| `DELETE` | `/api/v1/client-quotas/{id}` | Hapus kuota |
-| **TICKET** | | |
-| `POST` | `/api/v1/tickets` | Buat ticket baru |
-| `GET` | `/api/v1/tickets` | Ambil semua ticket |
-| `GET` | `/api/v1/tickets/{id}` | Ambil ticket berdasarkan ID |
-| `GET` | `/api/v1/tickets/number/{ticketNumber}` | Ambil ticket berdasarkan nomor |
+| Method | Endpoint | Deskripsi | Auth |
+|--------|----------|-----------|------|
+| **AUTH** | | | |
+| `POST` | `/api/v1/auth/register` | Registrasi user baru | Public |
+| `POST` | `/api/v1/auth/login` | Login & dapatkan token | Public |
+| **USER** | | | |
+| `POST` | `/api/v1/users` | Buat user baru | ADMIN |
+| `GET` | `/api/v1/users` | Ambil semua user | ADMIN |
+| `GET` | `/api/v1/users/{id}` | Ambil user by ID | ADMIN |
+| `PUT` | `/api/v1/users/{id}` | Update user | ADMIN |
+| `DELETE` | `/api/v1/users/{id}` | Hapus user | ADMIN |
+| **CLIENT** | | | |
+| `POST` | `/api/v1/clients` | Buat client baru | ADMIN |
+| `GET` | `/api/v1/clients` | Ambil semua client | ADMIN |
+| `GET` | `/api/v1/clients/{id}` | Ambil client by ID | ADMIN |
+| `PUT` | `/api/v1/clients/{id}` | Update client | ADMIN |
+| `DELETE` | `/api/v1/clients/{id}` | Hapus client | ADMIN |
+| **CLIENT QUOTA** | | | |
+| `POST` | `/api/v1/client-quotas` | Buat kuota baru | ADMIN |
+| `GET` | `/api/v1/client-quotas` | Ambil semua kuota | ADMIN |
+| `GET` | `/api/v1/client-quotas/{id}` | Ambil kuota by ID | ADMIN |
+| `GET` | `/api/v1/client-quotas/client/{id}/year/{y}` | Ambil kuota by client & tahun | ADMIN |
+| `PUT` | `/api/v1/client-quotas/{id}` | Update kuota | ADMIN |
+| `DELETE` | `/api/v1/client-quotas/{id}` | Hapus kuota | ADMIN |
+| **TICKET** | | | |
+| `POST` | `/api/v1/tickets` | Buat ticket baru | ADMIN, USER |
+| `GET` | `/api/v1/tickets` | Ambil semua ticket | ADMIN, USER |
+| `GET` | `/api/v1/tickets/{id}` | Ambil ticket by ID | ADMIN, USER |
+| `GET` | `/api/v1/tickets/number/{no}` | Ambil ticket by nomor | ADMIN, USER |
 
 ---
 
-### 👤 User API
+### 🔑 Auth API
 
-#### `POST /api/v1/users` — Buat User Baru
+#### `POST /api/v1/auth/register` — Registrasi User Baru
 
 **Request Body:**
 ```json
 {
   "name": "John Doe",
-  "email": "john.doe@example.com",
-  "password": "securePassword123",
+  "email": "john@example.com",
+  "password": "password123",
   "role": "USER"
 }
 ```
@@ -161,415 +191,211 @@ server.port=8080
 | Field | Tipe | Wajib | Keterangan |
 |-------|------|-------|------------|
 | `name` | `string` | ✅ | Nama lengkap |
-| `email` | `string` | ✅ | Email (harus unik & valid) |
+| `email` | `string` | ✅ | Email (harus unik) |
 | `password` | `string` | ✅ | Password |
-| `role` | `string` | ✅ | `USER`, `AGENT`, atau `MANAGER` |
+| `role` | `string` | ❌ | `ADMIN` atau `USER` (default: `USER`) |
 
 **Response — `201 Created`:**
 ```json
 {
+  "token": "eyJhbGciOiJIUzI1NiJ9...",
+  "type": "Bearer",
   "id": 1,
   "name": "John Doe",
-  "email": "john.doe@example.com",
+  "email": "john@example.com",
   "role": "USER"
 }
 ```
 
-> ⚠️ Password **tidak** dikembalikan di response untuk keamanan.
+**cURL:**
+```bash
+curl -X POST http://localhost:8080/api/v1/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "John Doe",
+    "email": "john@example.com",
+    "password": "password123",
+    "role": "USER"
+  }'
+```
+
+---
+
+#### `POST /api/v1/auth/login` — Login
+
+**Request Body:**
+```json
+{
+  "email": "john@example.com",
+  "password": "password123"
+}
+```
+
+**Response — `200 OK`:**
+```json
+{
+  "token": "eyJhbGciOiJIUzI1NiJ9...",
+  "type": "Bearer",
+  "id": 1,
+  "name": "John Doe",
+  "email": "john@example.com",
+  "role": "USER"
+}
+```
+
+**cURL:**
+```bash
+curl -X POST http://localhost:8080/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "john@example.com",
+    "password": "password123"
+  }'
+```
+
+---
+
+### 👤 User API (ADMIN only)
+
+> ⚠️ Semua endpoint User API memerlukan role **ADMIN**.
+
+#### `POST /api/v1/users` — Buat User Baru
+
+**Request Body:**
+```json
+{
+  "name": "Jane Admin",
+  "email": "jane@example.com",
+  "password": "securePass",
+  "role": "ADMIN"
+}
+```
 
 **cURL:**
 ```bash
 curl -X POST http://localhost:8080/api/v1/users \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <TOKEN>" \
   -d '{
-    "name": "John Doe",
-    "email": "john.doe@example.com",
-    "password": "securePassword123",
-    "role": "USER"
+    "name": "Jane Admin",
+    "email": "jane@example.com",
+    "password": "securePass",
+    "role": "ADMIN"
   }'
 ```
 
----
-
 #### `GET /api/v1/users` — Ambil Semua User
-
-**Response — `200 OK`:**
-```json
-[
-  {
-    "id": 1,
-    "name": "John Doe",
-    "email": "john.doe@example.com",
-    "role": "USER"
-  },
-  {
-    "id": 2,
-    "name": "Jane Admin",
-    "email": "jane.admin@example.com",
-    "role": "MANAGER"
-  }
-]
-```
-
-**cURL:**
 ```bash
-curl http://localhost:8080/api/v1/users
+curl -H "Authorization: Bearer <TOKEN>" http://localhost:8080/api/v1/users
 ```
-
----
 
 #### `GET /api/v1/users/{id}` — Ambil User by ID
-
-**Response — `200 OK`:**
-```json
-{
-  "id": 1,
-  "name": "John Doe",
-  "email": "john.doe@example.com",
-  "role": "USER"
-}
-```
-
-**cURL:**
 ```bash
-curl http://localhost:8080/api/v1/users/1
+curl -H "Authorization: Bearer <TOKEN>" http://localhost:8080/api/v1/users/1
 ```
-
----
 
 #### `PUT /api/v1/users/{id}` — Update User
-
-**Request Body:** Sama seperti Create User.
-
-**Response — `200 OK`:** Sama seperti response Get User.
-
-**cURL:**
 ```bash
 curl -X PUT http://localhost:8080/api/v1/users/1 \
   -H "Content-Type: application/json" \
-  -d '{
-    "name": "John Updated",
-    "email": "john.updated@example.com",
-    "password": "newPassword456",
-    "role": "AGENT"
-  }'
+  -H "Authorization: Bearer <TOKEN>" \
+  -d '{"name":"Updated","email":"updated@example.com","password":"newPass","role":"USER"}'
 ```
-
----
 
 #### `DELETE /api/v1/users/{id}` — Hapus User
-
-**Response — `204 No Content`**
-
-**cURL:**
 ```bash
-curl -X DELETE http://localhost:8080/api/v1/users/1
+curl -X DELETE -H "Authorization: Bearer <TOKEN>" http://localhost:8080/api/v1/users/1
 ```
 
 ---
 
-### 🏢 Client API
+### 🏢 Client API (ADMIN only)
+
+> ⚠️ Semua endpoint Client API memerlukan role **ADMIN**.
 
 #### `POST /api/v1/clients` — Buat Client Baru
-
-**Request Body:**
-```json
-{
-  "companyName": "PT Contoh Perusahaan"
-}
-```
-
-| Field | Tipe | Wajib | Keterangan |
-|-------|------|-------|------------|
-| `companyName` | `string` | ✅ | Nama perusahaan |
-
-**Response — `201 Created`:**
-```json
-{
-  "id": 1,
-  "companyName": "PT Contoh Perusahaan",
-  "isActive": true
-}
-```
-
-**cURL:**
 ```bash
 curl -X POST http://localhost:8080/api/v1/clients \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <TOKEN>" \
   -d '{"companyName": "PT Contoh Perusahaan"}'
 ```
 
----
-
 #### `GET /api/v1/clients` — Ambil Semua Client
-
-**Response — `200 OK`:**
-```json
-[
-  {
-    "id": 1,
-    "companyName": "PT Contoh Perusahaan",
-    "isActive": true
-  }
-]
-```
-
-**cURL:**
 ```bash
-curl http://localhost:8080/api/v1/clients
+curl -H "Authorization: Bearer <TOKEN>" http://localhost:8080/api/v1/clients
 ```
-
----
 
 #### `GET /api/v1/clients/{id}` — Ambil Client by ID
-
-**Response — `200 OK`:**
-```json
-{
-  "id": 1,
-  "companyName": "PT Contoh Perusahaan",
-  "isActive": true
-}
-```
-
-**cURL:**
 ```bash
-curl http://localhost:8080/api/v1/clients/1
+curl -H "Authorization: Bearer <TOKEN>" http://localhost:8080/api/v1/clients/1
 ```
-
----
 
 #### `PUT /api/v1/clients/{id}` — Update Client
-
-**Request Body:**
-```json
-{
-  "companyName": "PT Contoh Updated"
-}
-```
-
-**Response — `200 OK`:** Sama seperti response Get Client.
-
-**cURL:**
 ```bash
 curl -X PUT http://localhost:8080/api/v1/clients/1 \
   -H "Content-Type: application/json" \
-  -d '{"companyName": "PT Contoh Updated"}'
+  -H "Authorization: Bearer <TOKEN>" \
+  -d '{"companyName": "PT Updated"}'
 ```
-
----
 
 #### `DELETE /api/v1/clients/{id}` — Hapus Client
-
-**Response — `204 No Content`**
-
-**cURL:**
 ```bash
-curl -X DELETE http://localhost:8080/api/v1/clients/1
+curl -X DELETE -H "Authorization: Bearer <TOKEN>" http://localhost:8080/api/v1/clients/1
 ```
 
 ---
 
-### 📊 Client Quota API
+### 📊 Client Quota API (ADMIN only)
+
+> ⚠️ Semua endpoint Client Quota API memerlukan role **ADMIN**.
 
 #### `POST /api/v1/client-quotas` — Buat Kuota Baru
-
-**Request Body:**
-```json
-{
-  "clientId": 1,
-  "year": 2026,
-  "pmQuota": 12,
-  "cmQuota": 24
-}
-```
-
-| Field | Tipe | Wajib | Keterangan |
-|-------|------|-------|------------|
-| `clientId` | `number` | ✅ | ID client yang terdaftar |
-| `year` | `number` | ✅ | Tahun kuota |
-| `pmQuota` | `number` | ✅ | Jumlah kuota PM (≥ 0) |
-| `cmQuota` | `number` | ✅ | Jumlah kuota CM (≥ 0) |
-
-**Response — `201 Created`:**
-```json
-{
-  "id": 1,
-  "clientId": 1,
-  "clientCompanyName": "PT Contoh Perusahaan",
-  "year": 2026,
-  "pmQuota": 12,
-  "cmQuota": 24,
-  "pmUsed": 0,
-  "cmUsed": 0
-}
-```
-
-**cURL:**
 ```bash
 curl -X POST http://localhost:8080/api/v1/client-quotas \
   -H "Content-Type: application/json" \
-  -d '{
-    "clientId": 1,
-    "year": 2026,
-    "pmQuota": 12,
-    "cmQuota": 24
-  }'
+  -H "Authorization: Bearer <TOKEN>" \
+  -d '{"clientId":1,"year":2026,"pmQuota":12,"cmQuota":24}'
 ```
-
----
 
 #### `GET /api/v1/client-quotas` — Ambil Semua Kuota
-
-**Response — `200 OK`:**
-```json
-[
-  {
-    "id": 1,
-    "clientId": 1,
-    "clientCompanyName": "PT Contoh Perusahaan",
-    "year": 2026,
-    "pmQuota": 12,
-    "cmQuota": 24,
-    "pmUsed": 2,
-    "cmUsed": 5
-  }
-]
-```
-
-**cURL:**
 ```bash
-curl http://localhost:8080/api/v1/client-quotas
+curl -H "Authorization: Bearer <TOKEN>" http://localhost:8080/api/v1/client-quotas
 ```
-
----
-
-#### `GET /api/v1/client-quotas/{id}` — Ambil Kuota by ID
-
-**cURL:**
-```bash
-curl http://localhost:8080/api/v1/client-quotas/1
-```
-
----
 
 #### `GET /api/v1/client-quotas/client/{clientId}/year/{year}` — Ambil Kuota by Client & Tahun
-
-**cURL:**
 ```bash
-curl http://localhost:8080/api/v1/client-quotas/client/1/year/2026
+curl -H "Authorization: Bearer <TOKEN>" \
+  http://localhost:8080/api/v1/client-quotas/client/1/year/2026
 ```
-
-**Response — `200 OK`:**
-```json
-{
-  "id": 1,
-  "clientId": 1,
-  "clientCompanyName": "PT Contoh Perusahaan",
-  "year": 2026,
-  "pmQuota": 12,
-  "cmQuota": 24,
-  "pmUsed": 2,
-  "cmUsed": 5
-}
-```
-
----
 
 #### `PUT /api/v1/client-quotas/{id}` — Update Kuota
-
-Hanya mengubah nilai `pmQuota` dan `cmQuota`. Nilai `pmUsed` dan `cmUsed` tidak diubah.
-
-**Request Body:**
-```json
-{
-  "clientId": 1,
-  "year": 2026,
-  "pmQuota": 18,
-  "cmQuota": 30
-}
-```
-
-**cURL:**
 ```bash
 curl -X PUT http://localhost:8080/api/v1/client-quotas/1 \
   -H "Content-Type: application/json" \
-  -d '{
-    "clientId": 1,
-    "year": 2026,
-    "pmQuota": 18,
-    "cmQuota": 30
-  }'
+  -H "Authorization: Bearer <TOKEN>" \
+  -d '{"clientId":1,"year":2026,"pmQuota":18,"cmQuota":30}'
 ```
-
----
 
 #### `DELETE /api/v1/client-quotas/{id}` — Hapus Kuota
-
-**Response — `204 No Content`**
-
-**cURL:**
 ```bash
-curl -X DELETE http://localhost:8080/api/v1/client-quotas/1
+curl -X DELETE -H "Authorization: Bearer <TOKEN>" http://localhost:8080/api/v1/client-quotas/1
 ```
 
 ---
 
-### 🎫 Ticket API
+### 🎫 Ticket API (ADMIN & USER)
+
+> ✅ Endpoint Ticket API dapat diakses oleh role **ADMIN** dan **USER**.
 
 #### `POST /api/v1/tickets` — Buat Ticket Baru
-
-Membuat ticket baru dengan validasi:
-- Client dan requester harus terdaftar
-- Kuota maintenance (PM/CM) untuk tahun berjalan harus mencukupi
-- Nomor ticket di-generate otomatis: `TKT-YYYYMMDD-XXX`
-
-**Request Body:**
-```json
-{
-  "title": "Server tidak bisa diakses",
-  "description": "Server produksi down sejak pukul 10:00 WIB",
-  "priority": "L1",
-  "maintenanceType": "CM",
-  "clientId": 1,
-  "requesterId": 1
-}
-```
-
-| Field | Tipe | Wajib | Keterangan |
-|-------|------|-------|------------|
-| `title` | `string` | ✅ | Judul ticket |
-| `description` | `string` | ✅ | Deskripsi detail masalah |
-| `priority` | `string` | ✅ | `L1`, `L2`, `L3`, atau `L4` |
-| `maintenanceType` | `string` | ✅ | `PM` atau `CM` |
-| `clientId` | `number` | ✅ | ID client yang terdaftar |
-| `requesterId` | `number` | ✅ | ID user pembuat request |
-
-**Response — `201 Created`:**
-```json
-{
-  "id": 1,
-  "ticketNumber": "TKT-20260522-001",
-  "title": "Server tidak bisa diakses",
-  "description": "Server produksi down sejak pukul 10:00 WIB",
-  "status": "OPEN",
-  "priority": "L1",
-  "maintenanceType": "CM",
-  "clientId": 1,
-  "clientCompanyName": "PT Contoh Perusahaan",
-  "requesterId": 1,
-  "requesterName": "John Doe",
-  "createdAt": "2026-05-22T10:30:00"
-}
-```
-
-**cURL:**
 ```bash
 curl -X POST http://localhost:8080/api/v1/tickets \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <TOKEN>" \
   -d '{
-    "title": "Server tidak bisa diakses",
-    "description": "Server produksi down sejak pukul 10:00 WIB",
+    "title": "Server down",
+    "description": "Server produksi tidak bisa diakses",
     "priority": "L1",
     "maintenanceType": "CM",
     "clientId": 1,
@@ -577,83 +403,64 @@ curl -X POST http://localhost:8080/api/v1/tickets \
   }'
 ```
 
----
-
 #### `GET /api/v1/tickets` — Ambil Semua Ticket
-
-**cURL:**
 ```bash
-curl http://localhost:8080/api/v1/tickets
+curl -H "Authorization: Bearer <TOKEN>" http://localhost:8080/api/v1/tickets
 ```
-
----
 
 #### `GET /api/v1/tickets/{id}` — Ambil Ticket by ID
-
-**cURL:**
 ```bash
-curl http://localhost:8080/api/v1/tickets/1
+curl -H "Authorization: Bearer <TOKEN>" http://localhost:8080/api/v1/tickets/1
 ```
 
----
-
 #### `GET /api/v1/tickets/number/{ticketNumber}` — Ambil Ticket by Nomor
-
-**cURL:**
 ```bash
-curl http://localhost:8080/api/v1/tickets/number/TKT-20260522-001
+curl -H "Authorization: Bearer <TOKEN>" \
+  http://localhost:8080/api/v1/tickets/number/TKT-20260522-001
 ```
 
 ---
 
 ## 📖 Enum Reference
 
-### Priority — Level Prioritas
-
+### Role
 | Nilai | Keterangan |
 |-------|------------|
-| `L1` | Level 1 — Urgent / Critical |
-| `L2` | Level 2 — High |
-| `L3` | Level 3 — Medium |
-| `L4` | Level 4 — Low |
+| `ADMIN` | Full access ke semua fitur |
+| `USER` | Hanya bisa create & view ticket |
 
-### MaintenanceType — Tipe Maintenance
-
+### Priority
 | Nilai | Keterangan |
 |-------|------------|
-| `PM` | Preventive Maintenance — pemeliharaan berkala |
-| `CM` | Corrective Maintenance — perbaikan kerusakan |
+| `L1` | Urgent / Critical |
+| `L2` | High |
+| `L3` | Medium |
+| `L4` | Low |
 
-### TicketStatus — Status Ticket
+### MaintenanceType
+| Nilai | Keterangan |
+|-------|------------|
+| `PM` | Preventive Maintenance |
+| `CM` | Corrective Maintenance |
 
+### TicketStatus
 | Nilai | Keterangan |
 |-------|------------|
 | `OPEN` | Ticket baru dibuat |
 | `IN_PROGRESS` | Sedang dikerjakan |
-| `RESOLVED` | Masalah telah diselesaikan |
+| `RESOLVED` | Masalah diselesaikan |
 | `CLOSED` | Ticket ditutup |
-
-### Role — Role User
-
-| Nilai | Keterangan |
-|-------|------------|
-| `USER` | Pengguna biasa / requester |
-| `AGENT` | Agen IT support |
-| `MANAGER` | Manajer / supervisor |
 
 ---
 
 ## ❌ Error Handling
 
-Semua error menggunakan format response yang konsisten:
-
-### Format Error Response
-
+### Error Response Format
 ```json
 {
-  "status": 400,
-  "error": "Error Type",
-  "message": "Deskripsi error",
+  "status": 401,
+  "error": "Unauthorized",
+  "message": "Invalid email or password",
   "timestamp": "2026-05-22T10:30:00",
   "validationErrors": null
 }
@@ -663,55 +470,13 @@ Semua error menggunakan format response yang konsisten:
 
 | Status | Error | Kondisi |
 |--------|-------|---------|
-| `400` | Validation Failed | Field required tidak diisi / format tidak valid |
-| `404` | Not Found | Resource (user/client/ticket) tidak ditemukan |
-| `409` | Conflict | Data duplikat (email sudah terdaftar, kuota sudah ada) |
-| `422` | Quota Exceeded | Kuota maintenance client sudah habis |
-| `500` | Internal Server Error | Error tak terduga di server |
-
-#### Contoh: `400 Bad Request` — Validation Failed
-```json
-{
-  "status": 400,
-  "error": "Validation Failed",
-  "message": "One or more fields have invalid values",
-  "timestamp": "2026-05-22T10:30:00",
-  "validationErrors": {
-    "title": "Title is required",
-    "email": "Email must be valid"
-  }
-}
-```
-
-#### Contoh: `404 Not Found`
-```json
-{
-  "status": 404,
-  "error": "Not Found",
-  "message": "User not found with ID: 99",
-  "timestamp": "2026-05-22T10:30:00"
-}
-```
-
-#### Contoh: `409 Conflict` — Duplicate Data
-```json
-{
-  "status": 409,
-  "error": "Conflict",
-  "message": "Email already registered: john@example.com",
-  "timestamp": "2026-05-22T10:30:00"
-}
-```
-
-#### Contoh: `422 Unprocessable Entity` — Quota Exceeded
-```json
-{
-  "status": 422,
-  "error": "Quota Exceeded",
-  "message": "Kuota CM tidak mencukupi untuk client: PT Contoh (Used: 10/10)",
-  "timestamp": "2026-05-22T10:30:00"
-}
-```
+| `400` | Validation Failed | Field required tidak diisi / format invalid |
+| `401` | Unauthorized | Token tidak ada / expired / invalid credentials |
+| `403` | Forbidden | Role tidak memiliki akses ke endpoint |
+| `404` | Not Found | Resource tidak ditemukan |
+| `409` | Conflict | Data duplikat (email, kuota) |
+| `422` | Quota Exceeded | Kuota maintenance habis |
+| `500` | Internal Server Error | Error tak terduga |
 
 ---
 
@@ -723,69 +488,51 @@ ticketing-backend/
 ├── README.md
 └── src/main/java/com/itsm/ticketing/
     ├── TicketingBackendApplication.java
+    ├── config/
+    │   └── SecurityConfig.java            # Spring Security + RBAC config
     ├── controller/
-    │   ├── ClientController.java          # CRUD client
-    │   ├── ClientQuotaController.java     # CRUD kuota client
-    │   ├── TicketController.java          # CRUD ticket
-    │   └── UserController.java            # CRUD user
+    │   ├── AuthController.java            # Login & Register
+    │   ├── ClientController.java          # CRUD client (ADMIN)
+    │   ├── ClientQuotaController.java     # CRUD kuota (ADMIN)
+    │   ├── TicketController.java          # CRUD ticket (ADMIN+USER)
+    │   └── UserController.java            # CRUD user (ADMIN)
     ├── dto/
-    │   ├── ApiErrorResponse.java          # Format error response
-    │   ├── ClientQuotaResponse.java       # Response kuota
-    │   ├── ClientResponse.java            # Response client
-    │   ├── CreateClientQuotaRequest.java  # Request buat kuota
-    │   ├── CreateClientRequest.java       # Request buat client
-    │   ├── CreateTicketRequest.java       # Request buat ticket
-    │   ├── CreateUserRequest.java         # Request buat user
-    │   ├── TicketResponse.java            # Response ticket
-    │   └── UserResponse.java             # Response user
+    │   ├── ApiErrorResponse.java
+    │   ├── AuthResponse.java              # JWT token response
+    │   ├── LoginRequest.java              # Login request
+    │   ├── RegisterRequest.java           # Registration request
+    │   └── ... (other DTOs)
     ├── entity/
-    │   ├── Client.java
-    │   ├── ClientQuota.java
-    │   ├── MaintenanceType.java           # Enum PM/CM
-    │   ├── Priority.java                  # Enum L1-L4
-    │   ├── Role.java                      # Enum USER/AGENT/MANAGER
-    │   ├── Ticket.java
-    │   ├── TicketStatus.java              # Enum status ticket
-    │   └── User.java
+    │   ├── Role.java                      # ADMIN, USER
+    │   ├── User.java                      # Implements UserDetails
+    │   └── ... (other entities)
     ├── exception/
-    │   ├── GlobalExceptionHandler.java    # Handler error global
-    │   ├── QuotaExceededException.java
-    │   └── ResourceNotFoundException.java
+    │   └── GlobalExceptionHandler.java    # Includes 401, 403 handlers
+    ├── security/
+    │   ├── JwtAuthenticationEntryPoint.java  # 401 handler
+    │   ├── JwtAuthenticationFilter.java      # JWT request filter
+    │   └── JwtUtils.java                     # JWT token utilities
     ├── repository/
-    │   ├── ClientQuotaRepository.java
-    │   ├── ClientRepository.java
-    │   ├── TicketRepository.java
-    │   └── UserRepository.java
+    │   └── ... (repositories)
     └── service/
-        ├── ClientQuotaService.java        # Logic kuota
-        ├── ClientService.java             # Logic client
-        ├── TicketService.java             # Logic ticket
-        └── UserService.java              # Logic user
+        ├── AuthService.java               # Register & Login logic
+        ├── UserService.java               # + UserDetailsService
+        └── ... (other services)
 ```
-
----
-
-## 📝 Business Rules
-
-1. **Ticket Number**: Auto-generated format `TKT-YYYYMMDD-XXX` (contoh: `TKT-20260522-001`)
-2. **Quota Validation**: Setiap pembuatan ticket mengecek kuota maintenance client tahun berjalan
-3. **Status Default**: Ticket baru selalu `OPEN`
-4. **Email Unique**: Setiap user harus memiliki email yang unik
-5. **Quota Unique**: Kombinasi `client_id` + `year` harus unik
-6. **Password Hidden**: Password tidak dikembalikan di response API
 
 ---
 
 ## 🔄 Alur Penggunaan
 
 ```
-1. Buat Client    →  POST /api/v1/clients
-2. Buat User      →  POST /api/v1/users
-3. Buat Kuota     →  POST /api/v1/client-quotas
-4. Buat Ticket    →  POST /api/v1/tickets
+1. Register Admin  →  POST /api/v1/auth/register  (role: ADMIN)
+2. Login           →  POST /api/v1/auth/login      (dapatkan token)
+3. Buat Client     →  POST /api/v1/clients         (token ADMIN)
+4. Buat Kuota      →  POST /api/v1/client-quotas   (token ADMIN)
+5. Register User   →  POST /api/v1/auth/register   (role: USER)
+6. Login User      →  POST /api/v1/auth/login      (dapatkan token)
+7. Buat Ticket     →  POST /api/v1/tickets          (token USER/ADMIN)
 ```
-
-> **Penting:** Sebelum membuat ticket, pastikan sudah ada data **Client**, **User**, dan **Client Quota** untuk tahun berjalan.
 
 ---
 

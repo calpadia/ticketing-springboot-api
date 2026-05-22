@@ -7,6 +7,10 @@ import com.itsm.ticketing.exception.ResourceNotFoundException;
 import com.itsm.ticketing.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,16 +19,33 @@ import java.util.stream.Collectors;
 
 /**
  * Service layer for managing users.
+ * Also implements UserDetailsService for Spring Security authentication.
  */
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class UserService {
+public class UserService implements UserDetailsService {
 
     private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
+
+    // ========================================================================
+    // UserDetailsService implementation (for Spring Security)
+    // ========================================================================
+
+    @Override
+    public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
+        return userRepository.findByEmail(email)
+                .orElseThrow(() -> new UsernameNotFoundException(
+                        "User not found with email: " + email));
+    }
+
+    // ========================================================================
+    // CRUD Operations
+    // ========================================================================
 
     /**
-     * Create a new user.
+     * Create a new user. Password is hashed with BCrypt.
      *
      * @param request the user creation request
      * @return the created user response
@@ -42,7 +63,7 @@ public class UserService {
         User user = User.builder()
                 .name(request.getName())
                 .email(request.getEmail())
-                .password(request.getPassword())
+                .password(passwordEncoder.encode(request.getPassword()))
                 .role(request.getRole())
                 .build();
 
@@ -81,7 +102,7 @@ public class UserService {
     }
 
     /**
-     * Update an existing user.
+     * Update an existing user. Password is re-hashed with BCrypt.
      *
      * @param id      the user ID
      * @param request the update request
@@ -105,7 +126,7 @@ public class UserService {
 
         user.setName(request.getName());
         user.setEmail(request.getEmail());
-        user.setPassword(request.getPassword());
+        user.setPassword(passwordEncoder.encode(request.getPassword()));
         user.setRole(request.getRole());
 
         User updatedUser = userRepository.save(user);
