@@ -113,6 +113,21 @@ public class ClientQuotaService {
     }
 
     /**
+     * Get all quotas for a specific client.
+     *
+     * @param clientId the client ID
+     * @return list of quota responses for the client
+     */
+    @Transactional(readOnly = true)
+    public List<ClientQuotaResponse> getQuotasByClientId(Long clientId) {
+        log.info("Fetching quotas for client ID: {}", clientId);
+        return clientQuotaRepository.findByClientId(clientId)
+                .stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
+
+    /**
      * Update an existing client quota.
      *
      * @param id      the quota ID
