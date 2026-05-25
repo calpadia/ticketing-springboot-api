@@ -176,6 +176,8 @@ Token berlaku **24 jam** (dapat dikonfigurasi via `jwt.expiration`).
 | `GET` | `/api/v1/tickets` | Ambil semua ticket | ADMIN, USER |
 | `GET` | `/api/v1/tickets/{id}` | Ambil ticket by ID | ADMIN, USER |
 | `GET` | `/api/v1/tickets/number/{no}` | Ambil ticket by nomor | ADMIN, USER |
+| `PUT` | `/api/v1/tickets/{id}/status` | Update status ticket | ADMIN, USER |
+| `GET` | `/api/v1/tickets/{id}/progress` | Riwayat progress ticket | ADMIN, USER |
 | **CHAT** | | | |
 | `WS` | `/ws` | WebSocket handshake (SockJS) | Public |
 | `STOMP` | `/app/chat.send` | Kirim pesan chat real-time | ADMIN, USER |
@@ -438,6 +440,74 @@ curl -H "Authorization: Bearer <TOKEN>" http://localhost:8080/api/v1/tickets/1
 ```bash
 curl -H "Authorization: Bearer <TOKEN>" \
   http://localhost:8080/api/v1/tickets/number/TKT-20260522-001
+```
+
+#### `PUT /api/v1/tickets/{id}/status` — Update Status Ticket
+
+> Transisi status yang valid:
+> - `OPEN` → `IN_PROGRESS`
+> - `IN_PROGRESS` → `RESOLVED` / `CLOSED`
+> - `RESOLVED` → `CLOSED` / `IN_PROGRESS` (reopen)
+> - `CLOSED` → tidak bisa diubah
+
+**Request Body:**
+```json
+{
+  "status": "IN_PROGRESS",
+  "changedBy": 1,
+  "notes": "Mulai dikerjakan oleh tim teknis"
+}
+```
+
+| Field | Tipe | Wajib | Keterangan |
+|-------|------|-------|------------|
+| `status` | `string` | ✅ | Status baru (`IN_PROGRESS`, `RESOLVED`, `CLOSED`) |
+| `changedBy` | `number` | ✅ | ID user yang mengubah status |
+| `notes` | `string` | ❌ | Catatan perubahan (optional) |
+
+```bash
+curl -X PUT http://localhost:8080/api/v1/tickets/1/status \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <TOKEN>" \
+  -d '{
+    "status": "IN_PROGRESS",
+    "changedBy": 1,
+    "notes": "Mulai dikerjakan oleh tim teknis"
+  }'
+```
+
+#### `GET /api/v1/tickets/{id}/progress` — Riwayat Progress Ticket
+
+```bash
+curl -H "Authorization: Bearer <TOKEN>" http://localhost:8080/api/v1/tickets/1/progress
+```
+
+**Response — `200 OK`:**
+```json
+[
+  {
+    "id": 1,
+    "ticketId": 1,
+    "ticketNumber": "TKT-20260525-001",
+    "fromStatus": "OPEN",
+    "toStatus": "IN_PROGRESS",
+    "changedById": 1,
+    "changedByName": "Admin IT",
+    "notes": "Mulai dikerjakan oleh tim teknis",
+    "changedAt": "2026-05-25T14:30:00"
+  },
+  {
+    "id": 2,
+    "ticketId": 1,
+    "ticketNumber": "TKT-20260525-001",
+    "fromStatus": "IN_PROGRESS",
+    "toStatus": "RESOLVED",
+    "changedById": 1,
+    "changedByName": "Admin IT",
+    "notes": "Masalah sudah diperbaiki",
+    "changedAt": "2026-05-25T16:00:00"
+  }
+]
 ```
 
 ---

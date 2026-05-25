@@ -2,12 +2,15 @@ package com.itsm.ticketing.service;
 
 import com.itsm.ticketing.dto.AttachmentResponse;
 import com.itsm.ticketing.dto.CreateTicketRequest;
+import com.itsm.ticketing.dto.TicketProgressLogResponse;
 import com.itsm.ticketing.dto.TicketResponse;
+import com.itsm.ticketing.dto.UpdateTicketStatusRequest;
 import com.itsm.ticketing.entity.*;
 import com.itsm.ticketing.exception.QuotaExceededException;
 import com.itsm.ticketing.exception.ResourceNotFoundException;
 import com.itsm.ticketing.repository.ClientQuotaRepository;
 import com.itsm.ticketing.repository.ClientRepository;
+import com.itsm.ticketing.repository.TicketProgressLogRepository;
 import com.itsm.ticketing.repository.TicketRepository;
 import com.itsm.ticketing.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -36,6 +39,7 @@ public class TicketService {
     private final ClientQuotaRepository clientQuotaRepository;
     private final UserRepository userRepository;
     private final FileStorageService fileStorageService;
+    private final TicketProgressLogRepository progressLogRepository;
 
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMdd");
 
@@ -226,6 +230,113 @@ public class TicketService {
                 .requesterName(ticket.getRequester().getName())
                 .attachments(attachments)
                 .createdAt(ticket.getCreatedAt())
+                .build();
+    }
+
+    // ========================================================================
+    // TICKET STATUS UPDATE
+    // ========================================================================
+
+    /**
+     * Update the status of a ticket and record the change in progress log.
+     *
+     * @param ticketId the ticket ID
+     * @param request  the status update request
+     * @return the updated ticket response
+     */
+    @Transactional
+    public TicketResponse updateTicketStatus(Long ticketId, UpdateTicketStatusRequest request) {
+        log.info("Updating ticket {} status to {}", ticketId, request.getStatus());
+
+        Ticket ticket = ticketRepository.findById(ticketId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Ticket not found with ID: " + ticketId));
+
+        User changedBy = userRepository.findById(request.getChangedBy())
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "User not found with ID: " + request.getChangedBy()));
+
+        TicketStatus oldStatus = ticket.getStatus();
+        TicketStatus newStatus = request.getStatus();
+
+        // Validate status transition
+        validateStatusTransition(oldStatus, newStatus);
+
+        // Update ticket status
+        ticket.setStatus(newStatus);
+        Ticket updatedTicket = ticketRepository.save(ticket);
+
+        // Record progress log
+        TicketProgressLog progressLog = TicketProgressLog.builder()
+                .ticket(ticket)
+                .fromStatus(oldStatus)
+                .toStatus(newStatus)
+                .changedBy(changedBy)
+                .notes(request.getNotes())
+                .build();
+        progressLogRepository.save(progressLog);
+
+        log.info("Ticket {} status updated: {} -> {} by user {}",
+                ticket.getTicketNumber(), oldStatus, newStatus, changedBy.getName());
+
+        List<AttachmentResponse> attachments =
+                fileStorageService.getAttachmentsByTicketId(ticketId);
+        return mapToResponse(updatedTicket, attachments);
+    }
+
+    /**
+     * Get the progress history of a ticket.
+     *
+     * @param ticketId the ticket ID
+     * @return list of progress log entries
+     */
+    @Transactional(readOnly = true)
+    public List<TicketProgressLogResponse> getProgressLogs(Long ticketId) {
+        if (!ticketRepository.existsById(ticketId)) {
+            throw new ResourceNotFoundException("Ticket not found with ID: " + ticketId);
+        }
+        return progressLogRepository.findByTicketIdOrderByChangedAtAsc(ticketId)
+                .stream()
+                .map(this::mapToProgressLogResponse)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Validates allowed status transitions.
+     * OPEN -> IN_PROGRESS -> RESOLVED -> CLOSED
+     * Also allows: RESOLVED -> IN_PROGRESS (reopen)
+     */
+    private void validateStatusTransition(TicketStatus from, TicketStatus to) {
+        if (from == to) {
+            throw new IllegalArgumentException(
+                    "Ticket sudah berstatus: " + from);
+        }
+        boolean valid = switch (from) {
+            case OPEN -> to == TicketStatus.IN_PROGRESS;
+            case IN_PROGRESS -> to == TicketStatus.RESOLVED || to == TicketStatus.CLOSED;
+            case RESOLVED -> to == TicketStatus.CLOSED || to == TicketStatus.IN_PROGRESS;
+            case CLOSED -> false;
+        };
+        if (!valid) {
+            throw new IllegalArgumentException(
+                    "Transisi status tidak valid: " + from + " -> " + to);
+        }
+    }
+
+    /**
+     * Maps a TicketProgressLog entity to response DTO.
+     */
+    private TicketProgressLogResponse mapToProgressLogResponse(TicketProgressLog logEntry) {
+        return TicketProgressLogResponse.builder()
+                .id(logEntry.getId())
+                .ticketId(logEntry.getTicket().getId())
+                .ticketNumber(logEntry.getTicket().getTicketNumber())
+                .fromStatus(logEntry.getFromStatus())
+                .toStatus(logEntry.getToStatus())
+                .changedById(logEntry.getChangedBy().getId())
+                .changedByName(logEntry.getChangedBy().getName())
+                .notes(logEntry.getNotes())
+                .changedAt(logEntry.getChangedAt())
                 .build();
     }
 }

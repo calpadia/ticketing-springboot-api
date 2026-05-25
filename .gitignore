@@ -50,3 +50,4 @@ application-local.properties
 ### Custom ###
 Ref_API_Mfiles.json
 uploads/
+logs/

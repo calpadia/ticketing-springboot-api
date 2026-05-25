@@ -1,10 +1,13 @@
 package com.itsm.ticketing.controller;
 
 import com.itsm.ticketing.dto.CreateTicketRequest;
+import com.itsm.ticketing.dto.TicketProgressLogResponse;
 import com.itsm.ticketing.dto.TicketResponse;
+import com.itsm.ticketing.dto.UpdateTicketStatusRequest;
 import com.itsm.ticketing.entity.MaintenanceType;
 import com.itsm.ticketing.entity.Priority;
 import com.itsm.ticketing.service.TicketService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -30,15 +33,6 @@ public class TicketController {
     /**
      * Create a new ticket with optional file attachments.
      * Accepts multipart/form-data to support file uploads.
-     *
-     * @param title           ticket title
-     * @param description     ticket description
-     * @param priority        ticket priority (L1, L2, L3, L4)
-     * @param maintenanceType maintenance type (PM, CM)
-     * @param clientId        client ID
-     * @param requesterId     requester user ID
-     * @param files           optional file attachments
-     * @return the created ticket with HTTP 201 status
      */
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<TicketResponse> createTicket(
@@ -69,9 +63,6 @@ public class TicketController {
     /**
      * Create a new ticket without attachments (JSON body).
      * Kept for backward compatibility with existing API consumers.
-     *
-     * @param request the ticket creation request payload
-     * @return the created ticket with HTTP 201 status
      */
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<TicketResponse> createTicketJson(
@@ -82,9 +73,37 @@ public class TicketController {
     }
 
     /**
-     * Get all tickets.
+     * Update the status of a ticket.
      *
-     * @return list of all tickets
+     * @param id      the ticket ID
+     * @param request the status update request
+     * @return the updated ticket
+     */
+    @PutMapping("/{id}/status")
+    public ResponseEntity<TicketResponse> updateTicketStatus(
+            @PathVariable Long id,
+            @Valid @RequestBody UpdateTicketStatusRequest request) {
+        log.info("PUT /api/v1/tickets/{}/status - Updating status to {}", id, request.getStatus());
+        TicketResponse response = ticketService.updateTicketStatus(id, request);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Get the progress history (status change log) of a ticket.
+     *
+     * @param id the ticket ID
+     * @return list of progress log entries
+     */
+    @GetMapping("/{id}/progress")
+    public ResponseEntity<List<TicketProgressLogResponse>> getTicketProgress(
+            @PathVariable Long id) {
+        log.info("GET /api/v1/tickets/{}/progress - Fetching progress logs", id);
+        List<TicketProgressLogResponse> logs = ticketService.getProgressLogs(id);
+        return ResponseEntity.ok(logs);
+    }
+
+    /**
+     * Get all tickets.
      */
     @GetMapping
     public ResponseEntity<List<TicketResponse>> getAllTickets() {
@@ -95,9 +114,6 @@ public class TicketController {
 
     /**
      * Get a ticket by its ID.
-     *
-     * @param id the ticket ID
-     * @return the ticket details
      */
     @GetMapping("/{id}")
     public ResponseEntity<TicketResponse> getTicketById(@PathVariable Long id) {
@@ -108,9 +124,6 @@ public class TicketController {
 
     /**
      * Get a ticket by its ticket number.
-     *
-     * @param ticketNumber the unique ticket number (e.g., TKT-20260522-001)
-     * @return the ticket details
      */
     @GetMapping("/number/{ticketNumber}")
     public ResponseEntity<TicketResponse> getTicketByNumber(
