@@ -28,6 +28,12 @@ public class CreateUserRequest {
     @NotBlank(message = "Password is required")
     private String password;
 
+    /** Optional phone number */
+    private String phone;
+
     @NotNull(message = "Role is required")
     private Role role;
+
+    /** Client ID - required for USER role, optional for ADMIN */
+    private Long clientId;
 }

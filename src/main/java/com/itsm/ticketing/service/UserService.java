@@ -2,8 +2,11 @@ package com.itsm.ticketing.service;
 
 import com.itsm.ticketing.dto.CreateUserRequest;
 import com.itsm.ticketing.dto.UserResponse;
+import com.itsm.ticketing.entity.Client;
+import com.itsm.ticketing.entity.Role;
 import com.itsm.ticketing.entity.User;
 import com.itsm.ticketing.exception.ResourceNotFoundException;
+import com.itsm.ticketing.repository.ClientRepository;
 import com.itsm.ticketing.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,6 +30,7 @@ import java.util.stream.Collectors;
 public class UserService implements UserDetailsService {
 
     private final UserRepository userRepository;
+    private final ClientRepository clientRepository;
     private final PasswordEncoder passwordEncoder;
 
     // ========================================================================
@@ -60,11 +64,21 @@ public class UserService implements UserDetailsService {
                     "Email already registered: " + request.getEmail());
         }
 
+        // Resolve client if provided
+        Client client = null;
+        if (request.getClientId() != null) {
+            client = clientRepository.findById(request.getClientId())
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "Client not found with ID: " + request.getClientId()));
+        }
+
         User user = User.builder()
                 .name(request.getName())
                 .email(request.getEmail())
                 .password(passwordEncoder.encode(request.getPassword()))
+                .phone(request.getPhone())
                 .role(request.getRole())
+                .client(client)
                 .build();
 
         User savedUser = userRepository.save(user);
@@ -124,10 +138,20 @@ public class UserService implements UserDetailsService {
                     "Email already registered: " + request.getEmail());
         }
 
+        // Resolve client if provided
+        Client client = null;
+        if (request.getClientId() != null) {
+            client = clientRepository.findById(request.getClientId())
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "Client not found with ID: " + request.getClientId()));
+        }
+
         user.setName(request.getName());
         user.setEmail(request.getEmail());
         user.setPassword(passwordEncoder.encode(request.getPassword()));
+        user.setPhone(request.getPhone());
         user.setRole(request.getRole());
+        user.setClient(client);
 
         User updatedUser = userRepository.save(user);
         log.info("User updated successfully with ID: {}", updatedUser.getId());
@@ -161,7 +185,10 @@ public class UserService implements UserDetailsService {
                 .id(user.getId())
                 .name(user.getName())
                 .email(user.getEmail())
+                .phone(user.getPhone())
                 .role(user.getRole())
+                .clientId(user.getClient() != null ? user.getClient().getId() : null)
+                .clientName(user.getClient() != null ? user.getClient().getCompanyName() : null)
                 .build();
     }
 }
