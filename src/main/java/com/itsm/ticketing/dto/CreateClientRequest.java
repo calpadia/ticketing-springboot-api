@@ -28,4 +28,6 @@ public class CreateClientRequest {
 
     @NotBlank(message = "Contact person phone is required")
     private String contactPersonPhone;
+
+    private String projectName;
 }

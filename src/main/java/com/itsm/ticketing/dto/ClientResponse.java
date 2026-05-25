@@ -19,5 +19,6 @@ public class ClientResponse {
     private String contactPersonName;
     private String contactPersonEmail;
     private String contactPersonPhone;
+    private String projectName;
     private Boolean isActive;
 }

@@ -38,6 +38,7 @@ public class ClientService {
                 .contactPersonName(request.getContactPersonName())
                 .contactPersonEmail(request.getContactPersonEmail())
                 .contactPersonPhone(request.getContactPersonPhone())
+                .projectName(request.getProjectName())
                 .isActive(true)
                 .build();
 
@@ -95,6 +96,7 @@ public class ClientService {
         client.setContactPersonName(request.getContactPersonName());
         client.setContactPersonEmail(request.getContactPersonEmail());
         client.setContactPersonPhone(request.getContactPersonPhone());
+        client.setProjectName(request.getProjectName());
 
         Client updatedClient = clientRepository.save(client);
         log.info("Client updated successfully with ID: {}", updatedClient.getId());
@@ -130,6 +132,7 @@ public class ClientService {
                 .contactPersonName(client.getContactPersonName())
                 .contactPersonEmail(client.getContactPersonEmail())
                 .contactPersonPhone(client.getContactPersonPhone())
+                .projectName(client.getProjectName())
                 .isActive(client.getIsActive())
                 .build();
     }
