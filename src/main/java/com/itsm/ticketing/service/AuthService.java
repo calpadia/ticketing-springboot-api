@@ -65,6 +65,7 @@ public class AuthService {
                 .name(request.getName())
                 .email(request.getEmail())
                 .password(passwordEncoder.encode(request.getPassword()))
+                .phone(request.getPhone())
                 .role(role)
                 .client(client)
                 .build();
@@ -80,6 +81,7 @@ public class AuthService {
                 .id(savedUser.getId())
                 .name(savedUser.getName())
                 .email(savedUser.getEmail())
+                .phone(savedUser.getPhone())
                 .role(savedUser.getRole())
                 .build();
     }
@@ -110,6 +112,7 @@ public class AuthService {
                 .id(user.getId())
                 .name(user.getName())
                 .email(user.getEmail())
+                .phone(user.getPhone())
                 .role(user.getRole())
                 .build();
     }
