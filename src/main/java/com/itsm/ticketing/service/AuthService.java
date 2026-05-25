@@ -83,6 +83,8 @@ public class AuthService {
                 .email(savedUser.getEmail())
                 .phone(savedUser.getPhone())
                 .role(savedUser.getRole())
+                .clientId(client != null ? client.getId() : null)
+                .clientName(client != null ? client.getCompanyName() : null)
                 .build();
     }
 
@@ -114,6 +116,8 @@ public class AuthService {
                 .email(user.getEmail())
                 .phone(user.getPhone())
                 .role(user.getRole())
+                .clientId(user.getClient() != null ? user.getClient().getId() : null)
+                .clientName(user.getClient() != null ? user.getClient().getCompanyName() : null)
                 .build();
     }
 }
