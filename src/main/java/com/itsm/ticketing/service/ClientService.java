@@ -35,6 +35,9 @@ public class ClientService {
 
         Client client = Client.builder()
                 .companyName(request.getCompanyName())
+                .contactPersonName(request.getContactPersonName())
+                .contactPersonEmail(request.getContactPersonEmail())
+                .contactPersonPhone(request.getContactPersonPhone())
                 .isActive(true)
                 .build();
 
@@ -89,6 +92,9 @@ public class ClientService {
                         "Client not found with ID: " + id));
 
         client.setCompanyName(request.getCompanyName());
+        client.setContactPersonName(request.getContactPersonName());
+        client.setContactPersonEmail(request.getContactPersonEmail());
+        client.setContactPersonPhone(request.getContactPersonPhone());
 
         Client updatedClient = clientRepository.save(client);
         log.info("Client updated successfully with ID: {}", updatedClient.getId());
@@ -121,6 +127,9 @@ public class ClientService {
         return ClientResponse.builder()
                 .id(client.getId())
                 .companyName(client.getCompanyName())
+                .contactPersonName(client.getContactPersonName())
+                .contactPersonEmail(client.getContactPersonEmail())
+                .contactPersonPhone(client.getContactPersonPhone())
                 .isActive(client.getIsActive())
                 .build();
     }

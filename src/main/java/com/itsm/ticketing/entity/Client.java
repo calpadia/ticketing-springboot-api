@@ -24,6 +24,18 @@ public class Client {
     @Column(name = "company_name", nullable = false)
     private String companyName;
 
+    @NotBlank(message = "Contact person name is required")
+    @Column(name = "contact_person_name", nullable = false)
+    private String contactPersonName;
+
+    @NotBlank(message = "Contact person email is required")
+    @Column(name = "contact_person_email", nullable = false)
+    private String contactPersonEmail;
+
+    @NotBlank(message = "Contact person phone is required")
+    @Column(name = "contact_person_phone", nullable = false)
+    private String contactPersonPhone;
+
     @Builder.Default
     @Column(name = "is_active", nullable = false)
     private Boolean isActive = true;

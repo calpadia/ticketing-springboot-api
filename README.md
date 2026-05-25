@@ -329,7 +329,12 @@ curl -X DELETE -H "Authorization: Bearer <TOKEN>" http://localhost:8080/api/v1/u
 curl -X POST http://localhost:8080/api/v1/clients \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <TOKEN>" \
-  -d '{"companyName": "PT Contoh Perusahaan"}'
+  -d '{
+    "companyName": "PT Contoh Perusahaan",
+    "contactPersonName": "Budi Santoso",
+    "contactPersonEmail": "budi@contoh.com",
+    "contactPersonPhone": "08123456789"
+  }'
 ```
 
 #### `GET /api/v1/clients` — Ambil Semua Client
@@ -347,7 +352,12 @@ curl -H "Authorization: Bearer <TOKEN>" http://localhost:8080/api/v1/clients/1
 curl -X PUT http://localhost:8080/api/v1/clients/1 \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <TOKEN>" \
-  -d '{"companyName": "PT Updated"}'
+  -d '{
+    "companyName": "PT Updated",
+    "contactPersonName": "Siti Rahayu",
+    "contactPersonEmail": "siti@updated.com",
+    "contactPersonPhone": "08198765432"
+  }'
 ```
 
 #### `DELETE /api/v1/clients/{id}` — Hapus Client
