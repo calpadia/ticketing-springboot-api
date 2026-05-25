@@ -44,6 +44,15 @@ public class User implements UserDetails {
     @Column(nullable = false)
     private Role role;
 
+    /**
+     * The client this user belongs to.
+     * Nullable — ADMIN users are not tied to any client.
+     * USER must belong to a client for ticket/chat access control.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "client_id")
+    private Client client;
+
     // ========================================================================
     // UserDetails implementation
     // ========================================================================

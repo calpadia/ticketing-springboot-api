@@ -31,4 +31,10 @@ public class RegisterRequest {
      * Role for the new user. Defaults to USER if not specified.
      */
     private Role role;
+
+    /**
+     * Client ID to link the user to a client.
+     * Required for USER role, optional/ignored for ADMIN role.
+     */
+    private Long clientId;
 }

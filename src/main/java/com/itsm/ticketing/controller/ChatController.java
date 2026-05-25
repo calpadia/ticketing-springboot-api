@@ -20,6 +20,7 @@ import java.util.List;
  * Controller for chat functionality.
  * Provides WebSocket endpoints for real-time messaging
  * and REST endpoints for retrieving chat history.
+ * Access controlled: USER can only access their client's ticket chats.
  */
 @RestController
 @RequiredArgsConstructor
@@ -37,9 +38,7 @@ public class ChatController {
      * Handle incoming chat messages via WebSocket STOMP.
      * Client sends to: /app/chat.send
      * Server broadcasts to: /topic/chat/{ticketId}
-     *
-     * @param request   the chat message payload
-     * @param principal the authenticated user (from WebSocket session)
+     * Chat is blocked if ticket is RESOLVED or CLOSED.
      */
     @MessageMapping("/chat.send")
     public void sendMessage(@Payload ChatMessageRequest request, Principal principal) {
@@ -65,29 +64,27 @@ public class ChatController {
 
     /**
      * Get chat history for a ticket by its ID.
-     *
-     * @param ticketId the ticket ID
-     * @return list of chat messages ordered by sent time
+     * Access controlled per user's client.
      */
     @GetMapping("/api/v1/chat/{ticketId}")
     public ResponseEntity<List<ChatMessageResponse>> getChatHistory(
-            @PathVariable Long ticketId) {
+            @PathVariable Long ticketId,
+            @AuthenticationPrincipal User currentUser) {
         log.info("GET /api/v1/chat/{} - Fetching chat history", ticketId);
-        List<ChatMessageResponse> history = chatService.getChatHistory(ticketId);
+        List<ChatMessageResponse> history = chatService.getChatHistory(ticketId, currentUser);
         return ResponseEntity.ok(history);
     }
 
     /**
      * Get chat history for a ticket by its ticket number.
-     *
-     * @param ticketNumber the unique ticket number (e.g., TKT-20260522-001)
-     * @return list of chat messages ordered by sent time
+     * Access controlled per user's client.
      */
     @GetMapping("/api/v1/chat/ticket/{ticketNumber}")
     public ResponseEntity<List<ChatMessageResponse>> getChatHistoryByTicketNumber(
-            @PathVariable String ticketNumber) {
+            @PathVariable String ticketNumber,
+            @AuthenticationPrincipal User currentUser) {
         log.info("GET /api/v1/chat/ticket/{} - Fetching chat history by ticket number", ticketNumber);
-        List<ChatMessageResponse> history = chatService.getChatHistoryByTicketNumber(ticketNumber);
+        List<ChatMessageResponse> history = chatService.getChatHistoryByTicketNumber(ticketNumber, currentUser);
         return ResponseEntity.ok(history);
     }
 }

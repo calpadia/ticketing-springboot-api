@@ -117,14 +117,27 @@ public class TicketService {
     }
 
     /**
-     * Get all tickets.
+     * Get all tickets visible to the current user.
+     * ADMIN: sees all tickets. USER: sees only their client's tickets.
      *
-     * @return list of all ticket responses
+     * @param currentUser the authenticated user
+     * @return list of ticket responses
      */
     @Transactional(readOnly = true)
-    public List<TicketResponse> getAllTickets() {
-        return ticketRepository.findAll()
-                .stream()
+    public List<TicketResponse> getAllTickets(User currentUser) {
+        List<Ticket> tickets;
+
+        if (currentUser.getRole() == Role.ADMIN) {
+            tickets = ticketRepository.findAll();
+        } else {
+            // USER: only see tickets from their own client
+            if (currentUser.getClient() == null) {
+                return Collections.emptyList();
+            }
+            tickets = ticketRepository.findByClientId(currentUser.getClient().getId());
+        }
+
+        return tickets.stream()
                 .map(ticket -> {
                     List<AttachmentResponse> attachments =
                             fileStorageService.getAttachmentsByTicketId(ticket.getId());
@@ -134,37 +147,55 @@ public class TicketService {
     }
 
     /**
-     * Get a ticket by its ID.
+     * Get a ticket by its ID with access control.
+     * ADMIN: can see any ticket. USER: can only see their client's tickets.
      *
-     * @param id the ticket ID
+     * @param id          the ticket ID
+     * @param currentUser the authenticated user
      * @return the ticket response
-     * @throws ResourceNotFoundException if ticket is not found
      */
     @Transactional(readOnly = true)
-    public TicketResponse getTicketById(Long id) {
+    public TicketResponse getTicketById(Long id, User currentUser) {
         Ticket ticket = ticketRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Ticket not found with ID: " + id));
+        validateTicketAccess(ticket, currentUser);
         List<AttachmentResponse> attachments =
                 fileStorageService.getAttachmentsByTicketId(id);
         return mapToResponse(ticket, attachments);
     }
 
     /**
-     * Get a ticket by its ticket number.
+     * Get a ticket by its ticket number with access control.
      *
      * @param ticketNumber the unique ticket number
+     * @param currentUser  the authenticated user
      * @return the ticket response
-     * @throws ResourceNotFoundException if ticket is not found
      */
     @Transactional(readOnly = true)
-    public TicketResponse getTicketByNumber(String ticketNumber) {
+    public TicketResponse getTicketByNumber(String ticketNumber, User currentUser) {
         Ticket ticket = ticketRepository.findByTicketNumber(ticketNumber)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Ticket not found with number: " + ticketNumber));
+        validateTicketAccess(ticket, currentUser);
         List<AttachmentResponse> attachments =
                 fileStorageService.getAttachmentsByTicketId(ticket.getId());
         return mapToResponse(ticket, attachments);
+    }
+
+    /**
+     * Validates that the current user has access to this ticket.
+     * ADMIN: always allowed. USER: only if the ticket belongs to their client.
+     */
+    private void validateTicketAccess(Ticket ticket, User currentUser) {
+        if (currentUser.getRole() == Role.ADMIN) {
+            return; // Admin can access all tickets
+        }
+        if (currentUser.getClient() == null ||
+                !currentUser.getClient().getId().equals(ticket.getClient().getId())) {
+            throw new org.springframework.security.access.AccessDeniedException(
+                    "Anda tidak memiliki akses ke ticket ini");
+        }
     }
 
     // ========================================================================

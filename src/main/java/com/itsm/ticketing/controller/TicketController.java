@@ -6,6 +6,7 @@ import com.itsm.ticketing.dto.TicketResponse;
 import com.itsm.ticketing.dto.UpdateTicketStatusRequest;
 import com.itsm.ticketing.entity.MaintenanceType;
 import com.itsm.ticketing.entity.Priority;
+import com.itsm.ticketing.entity.User;
 import com.itsm.ticketing.service.TicketService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -13,6 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -20,7 +22,7 @@ import java.util.List;
 
 /**
  * REST controller for managing tickets.
- * Exposes CRUD endpoints for the ticketing system.
+ * Exposes CRUD endpoints with access control based on user's client.
  */
 @RestController
 @RequestMapping("/api/v1/tickets")
@@ -74,10 +76,6 @@ public class TicketController {
 
     /**
      * Update the status of a ticket.
-     *
-     * @param id      the ticket ID
-     * @param request the status update request
-     * @return the updated ticket
      */
     @PutMapping("/{id}/status")
     public ResponseEntity<TicketResponse> updateTicketStatus(
@@ -90,9 +88,6 @@ public class TicketController {
 
     /**
      * Get the progress history (status change log) of a ticket.
-     *
-     * @param id the ticket ID
-     * @return list of progress log entries
      */
     @GetMapping("/{id}/progress")
     public ResponseEntity<List<TicketProgressLogResponse>> getTicketProgress(
@@ -103,33 +98,39 @@ public class TicketController {
     }
 
     /**
-     * Get all tickets.
+     * Get all tickets visible to the current user.
+     * ADMIN sees all tickets, USER sees only their client's tickets.
      */
     @GetMapping
-    public ResponseEntity<List<TicketResponse>> getAllTickets() {
-        log.info("GET /api/v1/tickets - Fetching all tickets");
-        List<TicketResponse> tickets = ticketService.getAllTickets();
+    public ResponseEntity<List<TicketResponse>> getAllTickets(
+            @AuthenticationPrincipal User currentUser) {
+        log.info("GET /api/v1/tickets - Fetching tickets for user {} (role: {})",
+                currentUser.getEmail(), currentUser.getRole());
+        List<TicketResponse> tickets = ticketService.getAllTickets(currentUser);
         return ResponseEntity.ok(tickets);
     }
 
     /**
-     * Get a ticket by its ID.
+     * Get a ticket by its ID. Access controlled per user's client.
      */
     @GetMapping("/{id}")
-    public ResponseEntity<TicketResponse> getTicketById(@PathVariable Long id) {
+    public ResponseEntity<TicketResponse> getTicketById(
+            @PathVariable Long id,
+            @AuthenticationPrincipal User currentUser) {
         log.info("GET /api/v1/tickets/{} - Fetching ticket by ID", id);
-        TicketResponse response = ticketService.getTicketById(id);
+        TicketResponse response = ticketService.getTicketById(id, currentUser);
         return ResponseEntity.ok(response);
     }
 
     /**
-     * Get a ticket by its ticket number.
+     * Get a ticket by its ticket number. Access controlled per user's client.
      */
     @GetMapping("/number/{ticketNumber}")
     public ResponseEntity<TicketResponse> getTicketByNumber(
-            @PathVariable String ticketNumber) {
+            @PathVariable String ticketNumber,
+            @AuthenticationPrincipal User currentUser) {
         log.info("GET /api/v1/tickets/number/{} - Fetching ticket by number", ticketNumber);
-        TicketResponse response = ticketService.getTicketByNumber(ticketNumber);
+        TicketResponse response = ticketService.getTicketByNumber(ticketNumber, currentUser);
         return ResponseEntity.ok(response);
     }
 }
