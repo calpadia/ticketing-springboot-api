@@ -9,6 +9,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * Response DTO for returning ticket information.
@@ -35,6 +36,9 @@ public class TicketResponse {
     // Requester info (flattened)
     private Long requesterId;
     private String requesterName;
+
+    // Attachments
+    private List<AttachmentResponse> attachments;
 
     private LocalDateTime createdAt;
 }

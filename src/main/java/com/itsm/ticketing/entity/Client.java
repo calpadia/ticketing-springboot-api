@@ -24,16 +24,13 @@ public class Client {
     @Column(name = "company_name", nullable = false)
     private String companyName;
 
-    @NotBlank(message = "Contact person name is required")
-    @Column(name = "contact_person_name", nullable = false)
+    @Column(name = "contact_person_name")
     private String contactPersonName;
 
-    @NotBlank(message = "Contact person email is required")
-    @Column(name = "contact_person_email", nullable = false)
+    @Column(name = "contact_person_email")
     private String contactPersonEmail;
 
-    @NotBlank(message = "Contact person phone is required")
-    @Column(name = "contact_person_phone", nullable = false)
+    @Column(name = "contact_person_phone")
     private String contactPersonPhone;
 
     @Builder.Default

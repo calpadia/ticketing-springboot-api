@@ -1,5 +1,6 @@
 package com.itsm.ticketing.service;
 
+import com.itsm.ticketing.dto.AttachmentResponse;
 import com.itsm.ticketing.dto.CreateTicketRequest;
 import com.itsm.ticketing.dto.TicketResponse;
 import com.itsm.ticketing.entity.*;
@@ -13,9 +14,11 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -32,11 +35,12 @@ public class TicketService {
     private final ClientRepository clientRepository;
     private final ClientQuotaRepository clientQuotaRepository;
     private final UserRepository userRepository;
+    private final FileStorageService fileStorageService;
 
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMdd");
 
     /**
-     * Create a new ticket with quota validation.
+     * Create a new ticket with optional file attachments.
      *
      * <p>Business rules:
      * <ul>
@@ -44,15 +48,17 @@ public class TicketService {
      *   <li>Checks the client's maintenance quota for the current year</li>
      *   <li>Increments the used quota counter atomically within the transaction</li>
      *   <li>Generates a unique ticket number in format TKT-YYYYMMDD-XXX</li>
+     *   <li>Stores attached files to local filesystem (optional)</li>
      * </ul>
      *
      * @param request the ticket creation request
+     * @param files   optional list of file attachments
      * @return the created ticket response
      * @throws ResourceNotFoundException if client or requester is not found
      * @throws QuotaExceededException    if the client's quota is exhausted
      */
     @Transactional
-    public TicketResponse createTicket(CreateTicketRequest request) {
+    public TicketResponse createTicket(CreateTicketRequest request, List<MultipartFile> files) {
         log.info("Creating ticket for client ID: {}, maintenance type: {}",
                 request.getClientId(), request.getMaintenanceType());
 
@@ -94,9 +100,16 @@ public class TicketService {
         Ticket savedTicket = ticketRepository.save(ticket);
         clientQuotaRepository.save(quota);
 
+        // 6. Store attachments if provided
+        List<AttachmentResponse> attachmentResponses = Collections.emptyList();
+        if (files != null && !files.isEmpty()) {
+            attachmentResponses = fileStorageService.storeFiles(savedTicket, files);
+            log.info("{} file(s) attached to ticket {}", attachmentResponses.size(), ticketNumber);
+        }
+
         log.info("Ticket created successfully: {}", ticketNumber);
 
-        return mapToResponse(savedTicket);
+        return mapToResponse(savedTicket, attachmentResponses);
     }
 
     /**
@@ -108,7 +121,11 @@ public class TicketService {
     public List<TicketResponse> getAllTickets() {
         return ticketRepository.findAll()
                 .stream()
-                .map(this::mapToResponse)
+                .map(ticket -> {
+                    List<AttachmentResponse> attachments =
+                            fileStorageService.getAttachmentsByTicketId(ticket.getId());
+                    return mapToResponse(ticket, attachments);
+                })
                 .collect(Collectors.toList());
     }
 
@@ -124,7 +141,9 @@ public class TicketService {
         Ticket ticket = ticketRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Ticket not found with ID: " + id));
-        return mapToResponse(ticket);
+        List<AttachmentResponse> attachments =
+                fileStorageService.getAttachmentsByTicketId(id);
+        return mapToResponse(ticket, attachments);
     }
 
     /**
@@ -139,7 +158,9 @@ public class TicketService {
         Ticket ticket = ticketRepository.findByTicketNumber(ticketNumber)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Ticket not found with number: " + ticketNumber));
-        return mapToResponse(ticket);
+        List<AttachmentResponse> attachments =
+                fileStorageService.getAttachmentsByTicketId(ticket.getId());
+        return mapToResponse(ticket, attachments);
     }
 
     // ========================================================================
@@ -190,7 +211,7 @@ public class TicketService {
     /**
      * Maps a Ticket entity to a TicketResponse DTO.
      */
-    private TicketResponse mapToResponse(Ticket ticket) {
+    private TicketResponse mapToResponse(Ticket ticket, List<AttachmentResponse> attachments) {
         return TicketResponse.builder()
                 .id(ticket.getId())
                 .ticketNumber(ticket.getTicketNumber())
@@ -203,6 +224,7 @@ public class TicketService {
                 .clientCompanyName(ticket.getClient().getCompanyName())
                 .requesterId(ticket.getRequester().getId())
                 .requesterName(ticket.getRequester().getName())
+                .attachments(attachments)
                 .createdAt(ticket.getCreatedAt())
                 .build();
     }

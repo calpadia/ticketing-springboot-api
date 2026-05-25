@@ -71,6 +71,9 @@ public class SecurityConfig {
                         // Chat endpoints - accessible by both ADMIN and USER
                         .requestMatchers("/api/v1/chat/**").hasAnyRole("ADMIN", "USER")
 
+                        // Attachment endpoints - accessible by both ADMIN and USER
+                        .requestMatchers("/api/v1/attachments/**").hasAnyRole("ADMIN", "USER")
+
                         // All other requests require authentication
                         .anyRequest().authenticated()
                 )
