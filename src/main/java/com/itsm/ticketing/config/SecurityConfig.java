@@ -56,6 +56,9 @@ public class SecurityConfig {
                         // Public endpoints (auth)
                         .requestMatchers("/api/v1/auth/**").permitAll()
 
+                        // WebSocket handshake endpoint
+                        .requestMatchers("/ws/**").permitAll()
+
                         // Admin-only endpoints
                         .requestMatchers("/api/v1/users/**").hasRole("ADMIN")
                         .requestMatchers("/api/v1/clients/**").hasRole("ADMIN")
@@ -64,6 +67,9 @@ public class SecurityConfig {
                         // Ticket endpoints - accessible by both ADMIN and USER
                         .requestMatchers(HttpMethod.POST, "/api/v1/tickets").hasAnyRole("ADMIN", "USER")
                         .requestMatchers(HttpMethod.GET, "/api/v1/tickets/**").hasAnyRole("ADMIN", "USER")
+
+                        // Chat endpoints - accessible by both ADMIN and USER
+                        .requestMatchers("/api/v1/chat/**").hasAnyRole("ADMIN", "USER")
 
                         // All other requests require authentication
                         .anyRequest().authenticated()

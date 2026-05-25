@@ -1,6 +1,6 @@
 # 🎫 B2B ITSM Ticketing System — Backend API
 
-Sistem ticketing untuk manajemen IT Service Management (ITSM) berbasis B2B. Backend dibangun dengan Spring Boot dan PostgreSQL, mendukung **JWT Authentication** dan **Role-Based Access Control (RBAC)** dengan role ADMIN dan USER.
+Sistem ticketing untuk manajemen IT Service Management (ITSM) berbasis B2B. Backend dibangun dengan Spring Boot dan PostgreSQL, mendukung **JWT Authentication**, **Role-Based Access Control (RBAC)** dengan role ADMIN dan USER, serta **Real-time Chat** via WebSocket.
 
 ---
 
@@ -18,6 +18,7 @@ Sistem ticketing untuk manajemen IT Service Management (ITSM) berbasis B2B. Back
   - [Client API](#-client-api)
   - [Client Quota API](#-client-quota-api)
   - [Ticket API](#-ticket-api)
+  - [Chat API (WebSocket + REST)](#-chat-api-websocket--rest)
 - [Enum Reference](#-enum-reference)
 - [Error Handling](#-error-handling)
 
@@ -31,6 +32,7 @@ Sistem ticketing untuk manajemen IT Service Management (ITSM) berbasis B2B. Back
 | Spring Boot | 3.2.5 |
 | Spring Security | 6.x |
 | JWT (JJWT) | 0.12.6 |
+| Spring WebSocket | 3.2.x |
 | Spring Data JPA | 3.2.x |
 | PostgreSQL | 15+ |
 | Lombok | Latest |
@@ -133,6 +135,9 @@ Token berlaku **24 jam** (dapat dikonfigurasi via `jwt.expiration`).
 | `GET/POST/PUT/DELETE /api/v1/client-quotas/**` | ✅ | ❌ | ❌ |
 | `POST /api/v1/tickets` | ✅ | ✅ | ❌ |
 | `GET /api/v1/tickets/**` | ✅ | ✅ | ❌ |
+| `GET /api/v1/chat/**` | ✅ | ✅ | ❌ |
+| `WebSocket /ws` (handshake) | — | — | ✅ |
+| `STOMP /app/chat.send` | ✅ | ✅ | ❌ |
 
 ---
 
@@ -171,6 +176,12 @@ Token berlaku **24 jam** (dapat dikonfigurasi via `jwt.expiration`).
 | `GET` | `/api/v1/tickets` | Ambil semua ticket | ADMIN, USER |
 | `GET` | `/api/v1/tickets/{id}` | Ambil ticket by ID | ADMIN, USER |
 | `GET` | `/api/v1/tickets/number/{no}` | Ambil ticket by nomor | ADMIN, USER |
+| **CHAT** | | | |
+| `WS` | `/ws` | WebSocket handshake (SockJS) | Public |
+| `STOMP` | `/app/chat.send` | Kirim pesan chat real-time | ADMIN, USER |
+| `STOMP` | `/topic/chat/{ticketId}` | Subscribe pesan chat | ADMIN, USER |
+| `GET` | `/api/v1/chat/{ticketId}` | Histori chat by ticket ID | ADMIN, USER |
+| `GET` | `/api/v1/chat/ticket/{no}` | Histori chat by ticket number | ADMIN, USER |
 
 ---
 
@@ -421,6 +432,109 @@ curl -H "Authorization: Bearer <TOKEN>" \
 
 ---
 
+### 💬 Chat API (WebSocket + REST)
+
+> ✅ Chat API dapat diakses oleh role **ADMIN** dan **USER**.
+> Chat dikaitkan dengan **Ticket** — setiap percakapan berada dalam konteks tiket tertentu.
+
+#### Arsitektur WebSocket
+
+```
+┌──────────┐     WebSocket (STOMP)      ┌──────────┐     WebSocket (STOMP)      ┌──────────┐
+│   USER   │ ◄════════════════════════► │  SERVER  │ ◄════════════════════════► │  ADMIN   │
+└──────────┘                            └──────────┘                            └──────────┘
+
+Kirim:      /app/chat.send              Simpan ke DB              /app/chat.send
+Terima:     /topic/chat/{ticketId}       Broadcast                 /topic/chat/{ticketId}
+```
+
+#### Cara Menggunakan WebSocket
+
+**1. Connect ke WebSocket**
+```javascript
+// Menggunakan SockJS + STOMP.js
+const socket = new SockJS('http://localhost:8080/ws');
+const stompClient = Stomp.over(socket);
+
+stompClient.connect(
+    { 'Authorization': 'Bearer <JWT_TOKEN>' },
+    () => {
+        console.log('Connected!');
+
+        // Subscribe ke chat ticket tertentu
+        stompClient.subscribe('/topic/chat/1', (message) => {
+            const chatMessage = JSON.parse(message.body);
+            console.log('Pesan baru:', chatMessage);
+        });
+    }
+);
+```
+
+**2. Kirim Pesan**
+```javascript
+stompClient.send('/app/chat.send', {}, JSON.stringify({
+    ticketId: 1,
+    content: "Halo, saya butuh bantuan dengan server"
+}));
+```
+
+**3. Format Pesan yang Diterima**
+```json
+{
+  "id": 1,
+  "ticketId": 1,
+  "ticketNumber": "TKT-20260525-001",
+  "senderId": 2,
+  "senderName": "John Doe",
+  "senderRole": "USER",
+  "content": "Halo, saya butuh bantuan dengan server",
+  "sentAt": "2026-05-25T10:30:00"
+}
+```
+
+#### REST Endpoints (Histori Chat)
+
+#### `GET /api/v1/chat/{ticketId}` — Ambil Histori Chat by Ticket ID
+
+```bash
+curl -H "Authorization: Bearer <TOKEN>" http://localhost:8080/api/v1/chat/1
+```
+
+**Response — `200 OK`:**
+```json
+[
+  {
+    "id": 1,
+    "ticketId": 1,
+    "ticketNumber": "TKT-20260525-001",
+    "senderId": 2,
+    "senderName": "John Doe",
+    "senderRole": "USER",
+    "content": "Halo, server produksi down",
+    "sentAt": "2026-05-25T10:30:00"
+  },
+  {
+    "id": 2,
+    "ticketId": 1,
+    "ticketNumber": "TKT-20260525-001",
+    "senderId": 1,
+    "senderName": "Admin IT",
+    "senderRole": "ADMIN",
+    "content": "Baik, sedang kami cek. Mohon tunggu.",
+    "sentAt": "2026-05-25T10:31:00"
+  }
+]
+```
+
+#### `GET /api/v1/chat/ticket/{ticketNumber}` — Ambil Histori Chat by Nomor Ticket
+
+```bash
+curl -H "Authorization: Bearer <TOKEN>" \
+  http://localhost:8080/api/v1/chat/ticket/TKT-20260525-001
+```
+
+---
+
 ## 📖 Enum Reference
 
 ### Role
@@ -489,9 +603,11 @@ ticketing-backend/
 └── src/main/java/com/itsm/ticketing/
     ├── TicketingBackendApplication.java
     ├── config/
-    │   └── SecurityConfig.java            # Spring Security + RBAC config
+    │   ├── SecurityConfig.java            # Spring Security + RBAC config
+    │   └── WebSocketConfig.java           # WebSocket STOMP configuration
     ├── controller/
     │   ├── AuthController.java            # Login & Register
+    │   ├── ChatController.java            # WebSocket chat + REST history
     │   ├── ClientController.java          # CRUD client (ADMIN)
     │   ├── ClientQuotaController.java     # CRUD kuota (ADMIN)
     │   ├── TicketController.java          # CRUD ticket (ADMIN+USER)
@@ -499,10 +615,13 @@ ticketing-backend/
     ├── dto/
     │   ├── ApiErrorResponse.java
     │   ├── AuthResponse.java              # JWT token response
+    │   ├── ChatMessageRequest.java        # Chat send request
+    │   ├── ChatMessageResponse.java       # Chat message response
     │   ├── LoginRequest.java              # Login request
     │   ├── RegisterRequest.java           # Registration request
     │   └── ... (other DTOs)
     ├── entity/
+    │   ├── ChatMessage.java               # Chat message entity
     │   ├── Role.java                      # ADMIN, USER
     │   ├── User.java                      # Implements UserDetails
     │   └── ... (other entities)
@@ -511,11 +630,14 @@ ticketing-backend/
     ├── security/
     │   ├── JwtAuthenticationEntryPoint.java  # 401 handler
     │   ├── JwtAuthenticationFilter.java      # JWT request filter
-    │   └── JwtUtils.java                     # JWT token utilities
+    │   ├── JwtUtils.java                     # JWT token utilities
+    │   └── WebSocketAuthInterceptor.java     # JWT auth for WebSocket
     ├── repository/
-    │   └── ... (repositories)
+    │   ├── ChatMessageRepository.java     # Chat message queries
+    │   └── ... (other repositories)
     └── service/
         ├── AuthService.java               # Register & Login logic
+        ├── ChatService.java               # Chat send & history logic
         ├── UserService.java               # + UserDetailsService
         └── ... (other services)
 ```
@@ -532,6 +654,9 @@ ticketing-backend/
 5. Register User   →  POST /api/v1/auth/register   (role: USER)
 6. Login User      →  POST /api/v1/auth/login      (dapatkan token)
 7. Buat Ticket     →  POST /api/v1/tickets          (token USER/ADMIN)
+8. Connect Chat    →  WebSocket ws://localhost:8080/ws (STOMP + JWT)
+9. Kirim Pesan     →  STOMP /app/chat.send           (real-time)
+10. Histori Chat   →  GET /api/v1/chat/{ticketId}    (REST)
 ```
 
 ---
