@@ -17,8 +17,10 @@ Sistem ticketing untuk manajemen IT Service Management (ITSM) berbasis B2B. Back
   - [User API](#-user-api)
   - [Client API](#-client-api)
   - [Client Quota API](#-client-quota-api)
+  - [My Quota API](#-my-quota-api-admin--user)
   - [Ticket API](#-ticket-api)
   - [Chat API (WebSocket + REST)](#-chat-api-websocket--rest)
+  - [Chat Attachment API](#-chat-attachment-api-admin--user)
 - [Enum Reference](#-enum-reference)
 - [Error Handling](#-error-handling)
 
@@ -133,9 +135,10 @@ Token berlaku **24 jam** (dapat dikonfigurasi via `jwt.expiration`).
 | `GET/POST/PUT/DELETE /api/v1/users/**` | ✅ | ❌ | ❌ |
 | `GET/POST/PUT/DELETE /api/v1/clients/**` | ✅ | ❌ | ❌ |
 | `GET/POST/PUT/DELETE /api/v1/client-quotas/**` | ✅ | ❌ | ❌ |
+| `GET /api/v1/my-quotas/**` | ✅ | ✅ | ❌ |
 | `POST /api/v1/tickets` | ✅ | ✅ | ❌ |
 | `GET /api/v1/tickets/**` | ✅ | ✅ | ❌ |
-| `GET /api/v1/chat/**` | ✅ | ✅ | ❌ |
+| `GET/POST /api/v1/chat/**` | ✅ | ✅ | ❌ |
 | `WebSocket /ws` (handshake) | — | — | ✅ |
 | `STOMP /app/chat.send` | ✅ | ✅ | ❌ |
 
@@ -171,6 +174,9 @@ Token berlaku **24 jam** (dapat dikonfigurasi via `jwt.expiration`).
 | `GET` | `/api/v1/client-quotas/client/{id}/year/{y}` | Ambil kuota by client & tahun | ADMIN |
 | `PUT` | `/api/v1/client-quotas/{id}` | Update kuota | ADMIN |
 | `DELETE` | `/api/v1/client-quotas/{id}` | Hapus kuota | ADMIN |
+| **MY QUOTA** | | | |
+| `GET` | `/api/v1/my-quotas` | Ambil kuota client sendiri | ADMIN, USER |
+| `GET` | `/api/v1/my-quotas/year/{year}` | Ambil kuota client sendiri per tahun | ADMIN, USER |
 | **TICKET** | | | |
 | `POST` | `/api/v1/tickets` | Buat ticket baru | ADMIN, USER |
 | `GET` | `/api/v1/tickets` | Ambil semua ticket | ADMIN, USER |
@@ -184,6 +190,9 @@ Token berlaku **24 jam** (dapat dikonfigurasi via `jwt.expiration`).
 | `STOMP` | `/topic/chat/{ticketId}` | Subscribe pesan chat | ADMIN, USER |
 | `GET` | `/api/v1/chat/{ticketId}` | Histori chat by ticket ID | ADMIN, USER |
 | `GET` | `/api/v1/chat/ticket/{no}` | Histori chat by ticket number | ADMIN, USER |
+| **CHAT ATTACHMENT** | | | |
+| `POST` | `/api/v1/chat/upload` | Upload file untuk chat | ADMIN, USER |
+| `GET` | `/api/v1/chat/attachments/{id}/download` | Download file chat | ADMIN, USER |
 
 ---
 
@@ -407,6 +416,61 @@ curl -X DELETE -H "Authorization: Bearer <TOKEN>" http://localhost:8080/api/v1/c
 
 ---
 
+### 📋 My Quota API (ADMIN & USER)
+
+> ✅ Endpoint ini dapat diakses oleh role **ADMIN** dan **USER**.
+> ClientId diambil otomatis dari data user yang sedang login (JWT token), sehingga USER hanya bisa melihat kuota miliknya sendiri.
+
+#### `GET /api/v1/my-quotas` — Ambil Semua Kuota Client Sendiri
+
+Mengembalikan semua kuota (per tahun) untuk client milik user yang login.
+
+```bash
+curl -H "Authorization: Bearer <TOKEN>" http://localhost:8080/api/v1/my-quotas
+```
+
+**Response — `200 OK`:**
+```json
+[
+  {
+    "id": 1,
+    "clientId": 3,
+    "clientCompanyName": "PT ASTRA DAIHATSU MOTOR",
+    "year": 2026,
+    "pmQuota": 12,
+    "cmQuota": 24,
+    "pmUsed": 2,
+    "cmUsed": 5
+  }
+]
+```
+
+#### `GET /api/v1/my-quotas/year/{year}` — Ambil Kuota Client Sendiri per Tahun
+
+```bash
+curl -H "Authorization: Bearer <TOKEN>" http://localhost:8080/api/v1/my-quotas/year/2026
+```
+
+**Response — `200 OK`:**
+```json
+{
+  "id": 1,
+  "clientId": 3,
+  "clientCompanyName": "PT ASTRA DAIHATSU MOTOR",
+  "year": 2026,
+  "pmQuota": 12,
+  "cmQuota": 24,
+  "pmUsed": 2,
+  "cmUsed": 5
+}
+```
+
+> 💡 **Perbedaan dengan Client Quota API:**
+> - `/api/v1/client-quotas` → ADMIN only, bisa CRUD semua kuota semua client
+> - `/api/v1/my-quotas` → ADMIN & USER, hanya bisa **lihat** kuota client sendiri
+
+---
+
 ### 🎫 Ticket API (ADMIN & USER)
 
 > ✅ Endpoint Ticket API dapat diakses oleh role **ADMIN** dan **USER**.
@@ -516,6 +580,7 @@ curl -H "Authorization: Bearer <TOKEN>" http://localhost:8080/api/v1/tickets/1/p
 
 > ✅ Chat API dapat diakses oleh role **ADMIN** dan **USER**.
 > Chat dikaitkan dengan **Ticket** — setiap percakapan berada dalam konteks tiket tertentu.
+> Mendukung pengiriman **teks**, **file/gambar**, atau **keduanya**.
 
 #### Arsitektur WebSocket
 
@@ -550,7 +615,7 @@ stompClient.connect(
 );
 ```
 
-**2. Kirim Pesan**
+**2. Kirim Pesan (Teks Saja)**
 ```javascript
 stompClient.send('/app/chat.send', {}, JSON.stringify({
     ticketId: 1,
@@ -558,7 +623,29 @@ stompClient.send('/app/chat.send', {}, JSON.stringify({
 }));
 ```
 
-**3. Format Pesan yang Diterima**
+**3. Kirim Pesan dengan File Attachment**
+```javascript
+// Step 1: Upload file via REST terlebih dahulu
+const formData = new FormData();
+formData.append('ticketId', '1');
+formData.append('file', selectedFile);
+
+const uploadRes = await fetch('/api/v1/chat/upload', {
+    method: 'POST',
+    headers: { 'Authorization': 'Bearer <TOKEN>' },
+    body: formData
+});
+const { id: attachmentId } = await uploadRes.json();
+
+// Step 2: Kirim pesan WebSocket dengan referensi attachment
+stompClient.send('/app/chat.send', {}, JSON.stringify({
+    ticketId: 1,
+    content: "Ini screenshot errornya",
+    attachmentIds: [attachmentId]
+}));
+```
+
+**4. Format Pesan yang Diterima**
 ```json
 {
   "id": 1,
@@ -567,10 +654,21 @@ stompClient.send('/app/chat.send', {}, JSON.stringify({
   "senderId": 2,
   "senderName": "John Doe",
   "senderRole": "USER",
-  "content": "Halo, saya butuh bantuan dengan server",
-  "sentAt": "2026-05-25T10:30:00"
+  "content": "Ini screenshot errornya",
+  "sentAt": "2026-05-25T10:30:00",
+  "attachments": [
+    {
+      "id": 1,
+      "fileName": "screenshot.png",
+      "fileType": "image/png",
+      "fileSize": 234567,
+      "downloadUrl": "/api/v1/chat/attachments/1/download"
+    }
+  ]
 }
 ```
+
+> 💡 Pesan bisa berisi hanya teks, hanya attachment, atau keduanya.
 
 #### REST Endpoints (Histori Chat)
 
@@ -591,7 +689,8 @@ curl -H "Authorization: Bearer <TOKEN>" http://localhost:8080/api/v1/chat/1
     "senderName": "John Doe",
     "senderRole": "USER",
     "content": "Halo, server produksi down",
-    "sentAt": "2026-05-25T10:30:00"
+    "sentAt": "2026-05-25T10:30:00",
+    "attachments": []
   },
   {
     "id": 2,
@@ -601,7 +700,8 @@ curl -H "Authorization: Bearer <TOKEN>" http://localhost:8080/api/v1/chat/1
     "senderName": "Admin IT",
     "senderRole": "ADMIN",
     "content": "Baik, sedang kami cek. Mohon tunggu.",
-    "sentAt": "2026-05-25T10:31:00"
+    "sentAt": "2026-05-25T10:31:00",
+    "attachments": []
   }
 ]
 ```
@@ -611,6 +711,59 @@ curl -H "Authorization: Bearer <TOKEN>" http://localhost:8080/api/v1/chat/1
 ```bash
 curl -H "Authorization: Bearer <TOKEN>" \
   http://localhost:8080/api/v1/chat/ticket/TKT-20260525-001
+```
+
+---
+
+### 📎 Chat Attachment API (ADMIN & USER)
+
+> ✅ Endpoint untuk upload dan download file di dalam chat.
+> File diupload terlebih dahulu via REST, kemudian di-referensikan saat mengirim pesan WebSocket.
+
+#### `POST /api/v1/chat/upload` — Upload File untuk Chat
+
+Upload file yang akan dikirim di chat. Response berisi `id` (attachmentId) yang harus disertakan di pesan WebSocket.
+
+```bash
+curl -X POST http://localhost:8080/api/v1/chat/upload \
+  -H "Authorization: Bearer <TOKEN>" \
+  -F "ticketId=1" \
+  -F "file=@/path/to/screenshot.png"
+```
+
+**Response — `200 OK`:**
+```json
+{
+  "id": 1,
+  "fileName": "screenshot.png",
+  "fileType": "image/png",
+  "fileSize": 234567,
+  "downloadUrl": "/api/v1/chat/attachments/1/download"
+}
+```
+
+| Parameter | Tipe | Wajib | Keterangan |
+|-----------|------|-------|------------|
+| `ticketId` | `number` | ✅ | ID ticket terkait |
+| `file` | `file` | ✅ | File yang akan diupload |
+
+#### `GET /api/v1/chat/attachments/{id}/download` — Download File Chat
+
+Download file lampiran chat. Access control: user harus memiliki akses ke ticket terkait.
+
+```bash
+curl -H "Authorization: Bearer <TOKEN>" \
+  http://localhost:8080/api/v1/chat/attachments/1/download \
+  -o screenshot.png
+```
+
+#### Alur Lengkap Kirim File di Chat
+
+```
+1. Upload file    →  POST /api/v1/chat/upload  →  dapat attachmentId
+2. Kirim pesan    →  WebSocket /app/chat.send   →  { ticketId, content, attachmentIds: [id] }
+3. Server proses  →  Link attachment ke message  →  Broadcast ke /topic/chat/{ticketId}
+4. Download file  →  GET /api/v1/chat/attachments/{id}/download
 ```
 
 ---
@@ -684,24 +837,30 @@ ticketing-backend/
     ├── TicketingBackendApplication.java
     ├── config/
     │   ├── SecurityConfig.java            # Spring Security + RBAC config
-    │   └── WebSocketConfig.java           # WebSocket STOMP configuration
+    │   ├── WebSocketConfig.java           # WebSocket STOMP configuration
+    │   └── ... (other configs)
     ├── controller/
     │   ├── AuthController.java            # Login & Register
-    │   ├── ChatController.java            # WebSocket chat + REST history
+    │   ├── AttachmentController.java      # Ticket attachment download
+    │   ├── ChatController.java            # WebSocket chat + REST history + file upload/download
     │   ├── ClientController.java          # CRUD client (ADMIN)
     │   ├── ClientQuotaController.java     # CRUD kuota (ADMIN)
+    │   ├── MyQuotaController.java         # User's own quota (ADMIN+USER)
     │   ├── TicketController.java          # CRUD ticket (ADMIN+USER)
     │   └── UserController.java            # CRUD user (ADMIN)
     ├── dto/
     │   ├── ApiErrorResponse.java
-    │   ├── AuthResponse.java              # JWT token response
-    │   ├── ChatMessageRequest.java        # Chat send request
-    │   ├── ChatMessageResponse.java       # Chat message response
+    │   ├── AuthResponse.java              # JWT token response (includes clientId)
+    │   ├── ChatAttachmentInfo.java        # Attachment info in chat response
+    │   ├── ChatMessageRequest.java        # Chat send request (+ attachmentIds)
+    │   ├── ChatMessageResponse.java       # Chat message response (+ attachments)
+    │   ├── ChatUploadResponse.java        # Chat file upload response
     │   ├── LoginRequest.java              # Login request
     │   ├── RegisterRequest.java           # Registration request
     │   └── ... (other DTOs)
     ├── entity/
-    │   ├── ChatMessage.java               # Chat message entity
+    │   ├── ChatAttachment.java            # Chat file attachment entity
+    │   ├── ChatMessage.java               # Chat message entity (+ attachments relation)
     │   ├── Role.java                      # ADMIN, USER
     │   ├── User.java                      # Implements UserDetails
     │   └── ... (other entities)
@@ -713,11 +872,12 @@ ticketing-backend/
     │   ├── JwtUtils.java                     # JWT token utilities
     │   └── WebSocketAuthInterceptor.java     # JWT auth for WebSocket
     ├── repository/
+    │   ├── ChatAttachmentRepository.java  # Chat attachment queries
     │   ├── ChatMessageRepository.java     # Chat message queries
     │   └── ... (other repositories)
     └── service/
         ├── AuthService.java               # Register & Login logic
-        ├── ChatService.java               # Chat send & history logic
+        ├── ChatService.java               # Chat send, history, file upload/download
         ├── UserService.java               # + UserDetailsService
         └── ... (other services)
 ```
@@ -727,16 +887,19 @@ ticketing-backend/
 ## 🔄 Alur Penggunaan
 
 ```
-1. Register Admin  →  POST /api/v1/auth/register  (role: ADMIN)
-2. Login           →  POST /api/v1/auth/login      (dapatkan token)
-3. Buat Client     →  POST /api/v1/clients         (token ADMIN)
-4. Buat Kuota      →  POST /api/v1/client-quotas   (token ADMIN)
-5. Register User   →  POST /api/v1/auth/register   (role: USER)
-6. Login User      →  POST /api/v1/auth/login      (dapatkan token)
-7. Buat Ticket     →  POST /api/v1/tickets          (token USER/ADMIN)
-8. Connect Chat    →  WebSocket ws://localhost:8080/ws (STOMP + JWT)
-9. Kirim Pesan     →  STOMP /app/chat.send           (real-time)
-10. Histori Chat   →  GET /api/v1/chat/{ticketId}    (REST)
+1.  Register Admin  →  POST /api/v1/auth/register  (role: ADMIN)
+2.  Login           →  POST /api/v1/auth/login      (dapatkan token)
+3.  Buat Client     →  POST /api/v1/clients         (token ADMIN)
+4.  Buat Kuota      →  POST /api/v1/client-quotas   (token ADMIN)
+5.  Register User   →  POST /api/v1/auth/register   (role: USER, clientId)
+6.  Login User      →  POST /api/v1/auth/login      (dapatkan token + clientId)
+7.  Cek Kuota       →  GET /api/v1/my-quotas         (token USER → kuota sendiri)
+8.  Buat Ticket     →  POST /api/v1/tickets          (token USER/ADMIN)
+9.  Connect Chat    →  WebSocket ws://localhost:8080/ws (STOMP + JWT)
+10. Kirim Pesan     →  STOMP /app/chat.send           (real-time)
+11. Upload File     →  POST /api/v1/chat/upload       (REST, dapat attachmentId)
+12. Kirim + File    →  STOMP /app/chat.send           ({ attachmentIds: [id] })
+13. Histori Chat    →  GET /api/v1/chat/{ticketId}    (REST, termasuk attachments)
 ```
 
 ---
