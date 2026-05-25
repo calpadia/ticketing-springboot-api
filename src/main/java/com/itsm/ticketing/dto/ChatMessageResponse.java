@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * Response DTO for chat messages.
@@ -25,4 +26,11 @@ public class ChatMessageResponse {
     private String senderRole;
     private String content;
     private LocalDateTime sentAt;
+
+    /**
+     * List of attachments included in this message.
+     * Empty/null for text-only messages.
+     */
+    private List<ChatAttachmentInfo> attachments;
 }
+

@@ -1,15 +1,17 @@
 package com.itsm.ticketing.entity;
 
 import jakarta.persistence.*;
-import jakarta.validation.constraints.NotBlank;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Represents a chat message in the ITSM ticketing system.
  * Each message is tied to a specific ticket and has a sender (ADMIN or USER).
+ * Messages can contain text, file attachments, or both.
  */
 @Entity
 @Table(name = "chat_messages")
@@ -31,8 +33,10 @@ public class ChatMessage {
     @JoinColumn(name = "sender_id", nullable = false)
     private User sender;
 
-    @NotBlank(message = "Message content is required")
-    @Column(nullable = false, columnDefinition = "TEXT")
+    /**
+     * Text content of the message. Can be null/empty for attachment-only messages.
+     */
+    @Column(columnDefinition = "TEXT")
     private String content;
 
     @Enumerated(EnumType.STRING)
@@ -42,4 +46,12 @@ public class ChatMessage {
     @CreationTimestamp
     @Column(name = "sent_at", nullable = false, updatable = false)
     private LocalDateTime sentAt;
+
+    /**
+     * File attachments linked to this chat message.
+     */
+    @Builder.Default
+    @OneToMany(mappedBy = "chatMessage", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private List<ChatAttachment> attachments = new ArrayList<>();
 }
+
