@@ -33,9 +33,6 @@ public class Client {
     @Column(name = "contact_person_phone")
     private String contactPersonPhone;
 
-    @Column(name = "project_name")
-    private String projectName;
-
     @Builder.Default
     @Column(name = "is_active", nullable = false)
     private Boolean isActive = true;

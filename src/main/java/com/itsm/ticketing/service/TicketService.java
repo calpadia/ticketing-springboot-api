@@ -10,6 +10,7 @@ import com.itsm.ticketing.exception.QuotaExceededException;
 import com.itsm.ticketing.exception.ResourceNotFoundException;
 import com.itsm.ticketing.repository.ClientQuotaRepository;
 import com.itsm.ticketing.repository.ClientRepository;
+import com.itsm.ticketing.repository.ProjectRepository;
 import com.itsm.ticketing.repository.TicketProgressLogRepository;
 import com.itsm.ticketing.repository.TicketRepository;
 import com.itsm.ticketing.repository.UserRepository;
@@ -38,6 +39,7 @@ public class TicketService {
     private final ClientRepository clientRepository;
     private final ClientQuotaRepository clientQuotaRepository;
     private final UserRepository userRepository;
+    private final ProjectRepository projectRepository;
     private final FileStorageService fileStorageService;
     private final TicketProgressLogRepository progressLogRepository;
 
@@ -89,7 +91,20 @@ public class TicketService {
         // 4. Generate unique ticket number
         String ticketNumber = generateTicketNumber();
 
-        // 5. Build and save the ticket
+        // 5. Resolve project (optional)
+        Project project = null;
+        if (request.getProjectId() != null) {
+            project = projectRepository.findById(request.getProjectId())
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "Project not found with ID: " + request.getProjectId()));
+            // Validate project belongs to the same client
+            if (!project.getClient().getId().equals(client.getId())) {
+                throw new IllegalArgumentException(
+                        "Project ID " + request.getProjectId() + " tidak milik client " + client.getCompanyName());
+            }
+        }
+
+        // 6. Build and save the ticket
         Ticket ticket = Ticket.builder()
                 .ticketNumber(ticketNumber)
                 .title(request.getTitle())
@@ -98,6 +113,7 @@ public class TicketService {
                 .priority(request.getPriority())
                 .maintenanceType(request.getMaintenanceType())
                 .client(client)
+                .project(project)
                 .requester(requester)
                 .build();
 
@@ -247,7 +263,7 @@ public class TicketService {
      * Maps a Ticket entity to a TicketResponse DTO.
      */
     private TicketResponse mapToResponse(Ticket ticket, List<AttachmentResponse> attachments) {
-        return TicketResponse.builder()
+        TicketResponse.TicketResponseBuilder builder = TicketResponse.builder()
                 .id(ticket.getId())
                 .ticketNumber(ticket.getTicketNumber())
                 .title(ticket.getTitle())
@@ -260,8 +276,15 @@ public class TicketService {
                 .requesterId(ticket.getRequester().getId())
                 .requesterName(ticket.getRequester().getName())
                 .attachments(attachments)
-                .createdAt(ticket.getCreatedAt())
-                .build();
+                .createdAt(ticket.getCreatedAt());
+
+        // Include project info if available
+        if (ticket.getProject() != null) {
+            builder.projectId(ticket.getProject().getId())
+                    .projectName(ticket.getProject().getProjectName());
+        }
+
+        return builder.build();
     }
 
     // ========================================================================

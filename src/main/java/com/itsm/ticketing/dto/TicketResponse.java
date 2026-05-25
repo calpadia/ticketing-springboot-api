@@ -33,6 +33,10 @@ public class TicketResponse {
     private Long clientId;
     private String clientCompanyName;
 
+    // Project info (flattened, optional)
+    private Long projectId;
+    private String projectName;
+
     // Requester info (flattened)
     private Long requesterId;
     private String requesterName;

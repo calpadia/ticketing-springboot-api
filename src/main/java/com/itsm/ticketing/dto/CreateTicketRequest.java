@@ -33,6 +33,11 @@ public class CreateTicketRequest {
     @NotNull(message = "Client ID is required")
     private Long clientId;
 
+    /**
+     * Optional project ID. If provided, ticket will be linked to this project.
+     */
+    private Long projectId;
+
     @NotNull(message = "Requester ID is required")
     private Long requesterId;
 }

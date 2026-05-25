@@ -63,6 +63,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/users/**").hasRole("ADMIN")
                         .requestMatchers("/api/v1/clients/**").hasRole("ADMIN")
                         .requestMatchers("/api/v1/client-quotas/**").hasRole("ADMIN")
+                        .requestMatchers("/api/v1/projects/**").hasRole("ADMIN")
 
                         // User's own quota endpoint - accessible by both ADMIN and USER
                         .requestMatchers(HttpMethod.GET, "/api/v1/my-quotas/**").hasAnyRole("ADMIN", "USER")

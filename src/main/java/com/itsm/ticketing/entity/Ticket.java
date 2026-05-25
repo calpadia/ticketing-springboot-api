@@ -54,6 +54,13 @@ public class Ticket {
     @JoinColumn(name = "client_id", nullable = false)
     private Client client;
 
+    /**
+     * The project this ticket is associated with (optional).
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "project_id")
+    private Project project;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "requester_id", nullable = false)
     private User requester;
