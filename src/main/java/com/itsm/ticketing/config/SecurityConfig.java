@@ -82,7 +82,12 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/users/**").hasRole("ADMIN")
                         .requestMatchers("/api/v1/clients/**").hasRole("ADMIN")
                         .requestMatchers("/api/v1/client-quotas/**").hasRole("ADMIN")
-                        .requestMatchers("/api/v1/projects/**").hasRole("ADMIN")
+
+                        // Project endpoints - ADMIN full CRUD, USER can read own client's projects
+                        .requestMatchers(HttpMethod.POST, "/api/v1/projects").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/v1/projects/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/v1/projects/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/projects/**").hasAnyRole("ADMIN", "USER")
 
                         // User's own quota endpoint - accessible by ADMIN and USER
                         .requestMatchers(HttpMethod.GET, "/api/v1/my-quotas/**").hasAnyRole("ADMIN", "USER")
