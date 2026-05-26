@@ -2,6 +2,8 @@ package com.itsm.ticketing.config;
 
 import com.itsm.ticketing.security.JwtAuthenticationEntryPoint;
 import com.itsm.ticketing.security.JwtAuthenticationFilter;
+import com.itsm.ticketing.security.RateLimitingFilter;
+import com.itsm.ticketing.security.SecurityHeadersFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -19,10 +21,18 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfigurationSource;
 
 /**
  * Spring Security configuration.
- * Configures JWT-based stateless authentication and role-based access control.
+ * Configures JWT-based stateless authentication, role-based access control,
+ * CORS, security headers, and rate limiting.
+ *
+ * Security Standards:
+ * - OWASP Top 10 (A01-A10)
+ * - NIST SP 800-53 (AC, AU, SC controls)
+ * - CWE/SANS Top 25
+ * - BSSN Standar Keamanan Aplikasi
  */
 @Configuration
 @EnableWebSecurity
@@ -34,30 +44,39 @@ public class SecurityConfig {
     private final JwtAuthenticationEntryPoint jwtAuthEntryPoint;
     private final UserDetailsService userDetailsService;
     private final PasswordEncoder passwordEncoder;
+    private final CorsConfigurationSource corsConfigurationSource;
+    private final RateLimitingFilter rateLimitingFilter;
+    private final SecurityHeadersFilter securityHeadersFilter;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                // Disable CSRF (stateless REST API)
+                // Disable CSRF (stateless REST API with JWT)
                 .csrf(AbstractHttpConfigurer::disable)
+
+                // Enable CORS with strict configuration
+                .cors(cors -> cors.configurationSource(corsConfigurationSource))
 
                 // Exception handling
                 .exceptionHandling(exception -> exception
                         .authenticationEntryPoint(jwtAuthEntryPoint)
                 )
 
-                // Stateless session management
+                // Stateless session management (NIST IA-11)
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
 
-                // Endpoint authorization rules
+                // Endpoint authorization rules (NIST AC-3, OWASP A01)
                 .authorizeHttpRequests(auth -> auth
                         // Public endpoints (auth)
                         .requestMatchers("/api/v1/auth/**").permitAll()
 
                         // WebSocket handshake endpoint
                         .requestMatchers("/ws/**").permitAll()
+
+                        // Actuator health endpoint (for monitoring)
+                        .requestMatchers("/actuator/health").permitAll()
 
                         // Admin-only endpoints
                         .requestMatchers("/api/v1/users/**").hasRole("ADMIN")
@@ -71,6 +90,7 @@ public class SecurityConfig {
                         // Ticket endpoints - accessible by both ADMIN and USER
                         .requestMatchers(HttpMethod.POST, "/api/v1/tickets").hasAnyRole("ADMIN", "USER")
                         .requestMatchers(HttpMethod.GET, "/api/v1/tickets/**").hasAnyRole("ADMIN", "USER")
+                        .requestMatchers(HttpMethod.PUT, "/api/v1/tickets/**").hasAnyRole("ADMIN", "USER")
 
                         // Chat endpoints - accessible by both ADMIN and USER
                         .requestMatchers("/api/v1/chat/**").hasAnyRole("ADMIN", "USER")
@@ -82,8 +102,10 @@ public class SecurityConfig {
                         .anyRequest().authenticated()
                 )
 
-                // Add JWT filter before UsernamePasswordAuthenticationFilter
+                // Add security filters in correct order
                 .authenticationProvider(authenticationProvider())
+                .addFilterBefore(rateLimitingFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(securityHeadersFilter, RateLimitingFilter.class)
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

@@ -5,6 +5,8 @@ import com.itsm.ticketing.entity.Ticket;
 import com.itsm.ticketing.entity.TicketAttachment;
 import com.itsm.ticketing.exception.ResourceNotFoundException;
 import com.itsm.ticketing.repository.TicketAttachmentRepository;
+import com.itsm.ticketing.security.FileValidationUtil;
+import com.itsm.ticketing.security.InputSanitizer;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,6 +29,12 @@ import java.util.stream.Collectors;
 /**
  * Service for file storage operations.
  * Handles uploading files to local filesystem and retrieving them.
+ *
+ * Security hardened with:
+ * - Path traversal prevention (CWE-22)
+ * - File type validation (CWE-434)
+ * - Filename sanitization (OWASP File Upload)
+ * - Secure file storage with UUID naming
  */
 @Service
 @RequiredArgsConstructor
@@ -56,6 +64,7 @@ public class FileStorageService {
 
     /**
      * Store uploaded files and link them to a ticket.
+     * Validates each file before storage (CWE-434).
      *
      * @param ticket the ticket entity to link attachments to
      * @param files  the uploaded files
@@ -70,13 +79,33 @@ public class FileStorageService {
 
     /**
      * Store a single file and create an attachment record.
+     * Includes file validation and path traversal prevention.
      */
     private AttachmentResponse storeFile(Ticket ticket, MultipartFile file) {
-        String originalFileName = file.getOriginalFilename();
+        // Validate file (CWE-434: Unrestricted Upload)
+        String validationError = FileValidationUtil.validateFile(file);
+        if (validationError != null) {
+            log.warn("SECURITY_AUDIT: File upload rejected for ticket {}: {}",
+                    ticket.getTicketNumber(), validationError);
+            throw new IllegalArgumentException(validationError);
+        }
+
+        // Sanitize filename (CWE-22: Path Traversal)
+        String originalFileName = InputSanitizer.sanitizeFilename(file.getOriginalFilename());
+        // Use UUID prefix to prevent filename collisions and predictability
         String storedFileName = UUID.randomUUID().toString() + "_" + originalFileName;
 
         try {
-            Path targetLocation = uploadPath.resolve(storedFileName);
+            // Resolve and validate target path (CWE-22 defense-in-depth)
+            Path targetLocation = uploadPath.resolve(storedFileName).normalize();
+
+            // Ensure the resolved path is still within the upload directory
+            if (!targetLocation.startsWith(uploadPath)) {
+                log.error("SECURITY_AUDIT: Path traversal attempt detected! " +
+                        "Resolved path: {} is outside upload dir: {}", targetLocation, uploadPath);
+                throw new SecurityException("Invalid file path - potential path traversal attack");
+            }
+
             Files.copy(file.getInputStream(), targetLocation, StandardCopyOption.REPLACE_EXISTING);
 
             TicketAttachment attachment = TicketAttachment.builder()
@@ -88,7 +117,7 @@ public class FileStorageService {
                     .build();
 
             TicketAttachment saved = attachmentRepository.save(attachment);
-            log.info("File stored: {} -> {} (ticket: {})",
+            log.info("File stored securely: {} -> {} (ticket: {})",
                     originalFileName, storedFileName, ticket.getTicketNumber());
 
             return mapToResponse(saved);
@@ -110,6 +139,7 @@ public class FileStorageService {
 
     /**
      * Load a file as a Resource for downloading.
+     * Includes path traversal protection (CWE-22).
      *
      * @param attachmentId the attachment ID
      * @return the file resource
@@ -121,6 +151,14 @@ public class FileStorageService {
 
         try {
             Path filePath = uploadPath.resolve(attachment.getStoredFileName()).normalize();
+
+            // Path traversal protection (CWE-22)
+            if (!filePath.startsWith(uploadPath)) {
+                log.error("SECURITY_AUDIT: Path traversal attempt in file download! " +
+                        "Resolved: {} Upload dir: {}", filePath, uploadPath);
+                throw new SecurityException("Invalid file path");
+            }
+
             Resource resource = new UrlResource(filePath.toUri());
 
             if (resource.exists()) {

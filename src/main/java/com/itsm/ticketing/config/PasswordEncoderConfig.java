@@ -14,6 +14,8 @@ public class PasswordEncoderConfig {
 
     @Bean
     public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
+        // BCrypt with strength 12 (OWASP recommendation, NIST SP 800-63B)
+        // Higher strength = more computational cost for brute force attacks
+        return new BCryptPasswordEncoder(12);
     }
 }

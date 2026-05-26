@@ -6,6 +6,8 @@ import com.itsm.ticketing.exception.ResourceNotFoundException;
 import com.itsm.ticketing.repository.ChatAttachmentRepository;
 import com.itsm.ticketing.repository.ChatMessageRepository;
 import com.itsm.ticketing.repository.TicketRepository;
+import com.itsm.ticketing.security.FileValidationUtil;
+import com.itsm.ticketing.security.InputSanitizer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -72,14 +74,30 @@ public class ChatService {
                     "Tidak bisa upload file. Ticket sudah berstatus: " + ticket.getStatus());
         }
 
-        // Store the file
-        String originalFileName = file.getOriginalFilename();
+        // Validate file security (CWE-434: Unrestricted Upload)
+        String validationError = FileValidationUtil.validateFile(file);
+        if (validationError != null) {
+            log.warn("SECURITY_AUDIT: Chat file upload rejected for ticket {}: {}",
+                    ticket.getTicketNumber(), validationError);
+            throw new IllegalArgumentException(validationError);
+        }
+
+        // Store the file with sanitized filename (CWE-22: Path Traversal)
+        String originalFileName = InputSanitizer.sanitizeFilename(file.getOriginalFilename());
         String storedFileName = UUID.randomUUID().toString() + "_" + originalFileName;
 
         try {
             Path uploadPath = Paths.get(uploadDir).toAbsolutePath().normalize();
             Files.createDirectories(uploadPath);
-            Path targetLocation = uploadPath.resolve(storedFileName);
+            Path targetLocation = uploadPath.resolve(storedFileName).normalize();
+
+            // Path traversal protection (CWE-22)
+            if (!targetLocation.startsWith(uploadPath)) {
+                log.error("SECURITY_AUDIT: Path traversal attempt in chat upload! " +
+                        "Resolved: {} Upload dir: {}", targetLocation, uploadPath);
+                throw new SecurityException("Invalid file path");
+            }
+
             Files.copy(file.getInputStream(), targetLocation, StandardCopyOption.REPLACE_EXISTING);
 
             ChatAttachment attachment = ChatAttachment.builder()
@@ -127,6 +145,15 @@ public class ChatService {
         try {
             Path filePath = Paths.get(uploadDir).toAbsolutePath().normalize()
                     .resolve(attachment.getStoredFileName()).normalize();
+
+            // Path traversal protection (CWE-22)
+            Path baseUploadPath = Paths.get(uploadDir).toAbsolutePath().normalize();
+            if (!filePath.startsWith(baseUploadPath)) {
+                log.error("SECURITY_AUDIT: Path traversal attempt in chat download! " +
+                        "Resolved: {} Upload dir: {}", filePath, baseUploadPath);
+                throw new SecurityException("Invalid file path");
+            }
+
             Resource resource = new UrlResource(filePath.toUri());
 
             if (resource.exists()) {
