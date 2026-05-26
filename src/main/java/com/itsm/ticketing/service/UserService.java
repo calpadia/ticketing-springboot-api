@@ -178,6 +178,35 @@ public class UserService implements UserDetailsService {
     }
 
     /**
+     * Get users that the caller is allowed to assign as engineer for a ticket.
+     * <ul>
+     *   <li>ADMIN: SUPPORT + TECHNICAL_SUPPORT engineers</li>
+     *   <li>SUPPORT: TECHNICAL_SUPPORT engineers only (escalation flow)</li>
+     *   <li>Other roles: not allowed (handled at controller/security layer)</li>
+     * </ul>
+     *
+     * @param caller the authenticated user requesting the list
+     * @return list of users eligible to be assigned by the caller
+     * @throws org.springframework.security.access.AccessDeniedException if caller has no
+     *                                                                   permission to assign
+     */
+    @Transactional(readOnly = true)
+    public List<UserResponse> getAssignableEngineers(User caller) {
+        List<Role> targetRoles;
+        switch (caller.getRole()) {
+            case ADMIN -> targetRoles = List.of(Role.SUPPORT, Role.TECHNICAL_SUPPORT);
+            case SUPPORT -> targetRoles = List.of(Role.TECHNICAL_SUPPORT);
+            default -> throw new org.springframework.security.access.AccessDeniedException(
+                    "Role " + caller.getRole() + " tidak dapat melihat daftar assignable engineer");
+        }
+
+        return userRepository.findByRoleIn(targetRoles)
+                .stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
+
+    /**
      * Maps a User entity to a UserResponse DTO.
      */
     private UserResponse mapToResponse(User user) {

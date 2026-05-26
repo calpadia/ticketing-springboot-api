@@ -79,6 +79,9 @@ public class SecurityConfig {
                         .requestMatchers("/actuator/health").permitAll()
 
                         // Admin-only endpoints
+                        // NOTE: /users/assignable is exposed to SUPPORT for ticket-assignment dropdowns,
+                        // so it must be matched BEFORE the broader /users/** ADMIN rule.
+                        .requestMatchers(HttpMethod.GET, "/api/v1/users/assignable").hasAnyRole("ADMIN", "SUPPORT")
                         .requestMatchers("/api/v1/users/**").hasRole("ADMIN")
                         .requestMatchers("/api/v1/clients/**").hasRole("ADMIN")
                         .requestMatchers("/api/v1/client-quotas/**").hasRole("ADMIN")

@@ -151,6 +151,7 @@ TECHNICAL_SUPPORT mengerjakan ticket
 | `POST /api/v1/auth/register` | — | — | — | — | ✅ |
 | `POST /api/v1/auth/login` | — | — | — | — | ✅ |
 | `GET/POST/PUT/DELETE /api/v1/users/**` | ✅ | ❌ | ❌ | ❌ | ❌ |
+| `GET /api/v1/users/assignable` | ✅ | ✅ | ❌ | ❌ | ❌ |
 | `GET/POST/PUT/DELETE /api/v1/clients/**` | ✅ | ❌ | ❌ | ❌ | ❌ |
 | `POST/DELETE/GET /api/v1/clients/{id}/supports` | ✅ | ❌ | ❌ | ❌ | ❌ |
 | `POST/PUT/DELETE /api/v1/projects/**` | ✅ | ❌ | ❌ | ❌ | ❌ |
@@ -186,6 +187,7 @@ TECHNICAL_SUPPORT mengerjakan ticket
 | **USER** | | | |
 | `POST` | `/api/v1/users` | Buat user baru | ADMIN |
 | `GET` | `/api/v1/users` | Ambil semua user | ADMIN |
+| `GET` | `/api/v1/users/assignable` | Daftar engineer yang bisa di-assign (filter per role) | ADMIN, SUPPORT |
 | `GET` | `/api/v1/users/{id}` | Ambil user by ID | ADMIN |
 | `PUT` | `/api/v1/users/{id}` | Update user | ADMIN |
 | `DELETE` | `/api/v1/users/{id}` | Hapus user | ADMIN |
@@ -366,6 +368,20 @@ curl -X POST http://localhost:8080/api/v1/users \
 #### `GET /api/v1/users` — Ambil Semua User
 ```bash
 curl -H "Authorization: Bearer <TOKEN>" http://localhost:8080/api/v1/users
+```
+
+#### `GET /api/v1/users/assignable` — Daftar Engineer yang Bisa Di-assign
+
+> ✅ Endpoint khusus untuk dropdown assignment ticket. Bisa diakses **ADMIN** dan **SUPPORT**.
+> Hasilnya difilter otomatis berdasarkan role caller:
+> - **ADMIN** → list `SUPPORT` + `TECHNICAL_SUPPORT`
+> - **SUPPORT** → list `TECHNICAL_SUPPORT` saja (alur eskalasi)
+>
+> Gunakan endpoint ini di frontend (bukan `GET /api/v1/users`) supaya SUPPORT bisa melihat list TECHNICAL_SUPPORT untuk eskalasi tanpa harus diberi akses penuh ke list user.
+
+```bash
+curl -H "Authorization: Bearer <SUPPORT_TOKEN>" \
+  http://localhost:8080/api/v1/users/assignable
 ```
 
 #### `GET /api/v1/users/{id}` — Ambil User by ID

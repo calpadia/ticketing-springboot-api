@@ -2,12 +2,14 @@ package com.itsm.ticketing.controller;
 
 import com.itsm.ticketing.dto.CreateUserRequest;
 import com.itsm.ticketing.dto.UserResponse;
+import com.itsm.ticketing.entity.User;
 import com.itsm.ticketing.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -48,6 +50,22 @@ public class UserController {
         log.info("GET /api/v1/users - Fetching all users");
         List<UserResponse> users = userService.getAllUsers();
         return ResponseEntity.ok(users);
+    }
+
+    /**
+     * Get the list of users that the caller can assign as engineer to a ticket.
+     * <ul>
+     *   <li>ADMIN sees SUPPORT and TECHNICAL_SUPPORT users.</li>
+     *   <li>SUPPORT sees TECHNICAL_SUPPORT users only (escalation).</li>
+     * </ul>
+     * Other roles get 403 from the security layer.
+     */
+    @GetMapping("/assignable")
+    public ResponseEntity<List<UserResponse>> getAssignableEngineers(
+            @AuthenticationPrincipal User caller) {
+        log.info("GET /api/v1/users/assignable - {} (role: {})",
+                caller.getEmail(), caller.getRole());
+        return ResponseEntity.ok(userService.getAssignableEngineers(caller));
     }
 
     /**
