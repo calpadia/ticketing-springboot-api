@@ -45,6 +45,7 @@ public class TicketService {
     private final FileStorageService fileStorageService;
     private final TicketProgressLogRepository progressLogRepository;
     private final TicketAssignmentRepository assignmentRepository;
+    private final ClientSupportService clientSupportService;
 
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMdd");
 
@@ -129,6 +130,9 @@ public class TicketService {
             attachmentResponses = fileStorageService.storeFiles(savedTicket, files);
             log.info("{} file(s) attached to ticket {}", attachmentResponses.size(), ticketNumber);
         }
+
+        // 7. Auto-assign support engineers registered to this client
+        autoAssignClientSupports(savedTicket, client);
 
         log.info("Ticket created successfully: {}", ticketNumber);
 
@@ -244,6 +248,42 @@ public class TicketService {
     // ========================================================================
     // PRIVATE HELPER METHODS
     // ========================================================================
+
+    /**
+     * Auto-assign all support engineers registered to a client to a newly created ticket.
+     * This ensures that when a USER creates a ticket, all support staff for that client
+     * automatically get assigned and can see/work on the ticket.
+     */
+    private void autoAssignClientSupports(Ticket ticket, Client client) {
+        List<User> clientSupports = clientSupportService.getActiveSupportUsersForClient(client.getId());
+
+        if (clientSupports.isEmpty()) {
+            log.info("No support engineers registered for client {} - no auto-assignment",
+                    client.getCompanyName());
+            return;
+        }
+
+        for (User supportUser : clientSupports) {
+            // Skip if already assigned (shouldn't happen for new tickets, but safety check)
+            if (assignmentRepository.existsByTicketIdAndAssignedToIdAndActiveTrue(
+                    ticket.getId(), supportUser.getId())) {
+                continue;
+            }
+
+            TicketAssignment assignment = TicketAssignment.builder()
+                    .ticket(ticket)
+                    .assignedTo(supportUser)
+                    .assignedBy(supportUser) // Auto-assigned by system (use support user as assignedBy)
+                    .notes("Auto-assigned: support terdaftar di client " + client.getCompanyName())
+                    .active(true)
+                    .build();
+
+            assignmentRepository.save(assignment);
+        }
+
+        log.info("Auto-assigned {} support engineer(s) to ticket {} (client: {})",
+                clientSupports.size(), ticket.getTicketNumber(), client.getCompanyName());
+    }
 
     /**
      * Validates the quota and increments the used counter.

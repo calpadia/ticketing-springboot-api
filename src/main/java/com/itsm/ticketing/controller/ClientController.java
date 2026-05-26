@@ -1,8 +1,11 @@
 package com.itsm.ticketing.controller;
 
+import com.itsm.ticketing.dto.ClientSupportResponse;
 import com.itsm.ticketing.dto.CreateClientRequest;
 import com.itsm.ticketing.dto.ClientResponse;
+import com.itsm.ticketing.dto.ManageClientSupportsRequest;
 import com.itsm.ticketing.service.ClientService;
+import com.itsm.ticketing.service.ClientSupportService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -14,7 +17,7 @@ import java.util.List;
 
 /**
  * REST controller for managing clients.
- * Exposes CRUD endpoints for client management.
+ * Exposes CRUD endpoints for client management and support assignment.
  */
 @RestController
 @RequestMapping("/api/v1/clients")
@@ -23,6 +26,7 @@ import java.util.List;
 public class ClientController {
 
     private final ClientService clientService;
+    private final ClientSupportService clientSupportService;
 
     /**
      * Create a new client.
@@ -90,5 +94,59 @@ public class ClientController {
         log.info("DELETE /api/v1/clients/{} - Deleting client", id);
         clientService.deleteClient(id);
         return ResponseEntity.noContent().build();
+    }
+
+    // ========================================================================
+    // CLIENT SUPPORT MANAGEMENT
+    // ========================================================================
+
+    /**
+     * Add support engineers to a client.
+     * These support users will be auto-assigned to new tickets from this client.
+     *
+     * @param clientId the client ID
+     * @param request  contains list of support user IDs
+     * @return list of created assignments
+     */
+    @PostMapping("/{clientId}/supports")
+    public ResponseEntity<List<ClientSupportResponse>> addSupports(
+            @PathVariable Long clientId,
+            @Valid @RequestBody ManageClientSupportsRequest request) {
+        log.info("POST /api/v1/clients/{}/supports - Adding {} support(s)",
+                clientId, request.getSupportUserIds().size());
+        List<ClientSupportResponse> responses =
+                clientSupportService.addSupportsToClient(clientId, request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(responses);
+    }
+
+    /**
+     * Remove support engineers from a client.
+     *
+     * @param clientId the client ID
+     * @param request  contains list of support user IDs to remove
+     */
+    @DeleteMapping("/{clientId}/supports")
+    public ResponseEntity<Void> removeSupports(
+            @PathVariable Long clientId,
+            @Valid @RequestBody ManageClientSupportsRequest request) {
+        log.info("DELETE /api/v1/clients/{}/supports - Removing {} support(s)",
+                clientId, request.getSupportUserIds().size());
+        clientSupportService.removeSupportsFromClient(clientId, request);
+        return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Get all active support engineers for a client.
+     *
+     * @param clientId the client ID
+     * @return list of support assignments
+     */
+    @GetMapping("/{clientId}/supports")
+    public ResponseEntity<List<ClientSupportResponse>> getClientSupports(
+            @PathVariable Long clientId) {
+        log.info("GET /api/v1/clients/{}/supports - Fetching supports", clientId);
+        List<ClientSupportResponse> supports =
+                clientSupportService.getSupportsByClient(clientId);
+        return ResponseEntity.ok(supports);
     }
 }
