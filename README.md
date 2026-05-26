@@ -20,6 +20,7 @@ Sistem ticketing untuk manajemen IT Service Management (ITSM) berbasis B2B. Back
   - [Project API](#-project-api)
   - [Client Quota API](#-client-quota-api)
   - [My Quota API](#-my-quota-api-admin--user)
+  - [Service Catalog API](#-service-catalog-api-admin-only)
   - [Ticket API](#-ticket-api)
   - [Ticket Assignment API](#-ticket-assignment-api)
   - [Chat API (WebSocket + REST)](#-chat-api-websocket--rest)
@@ -156,6 +157,7 @@ TECHNICAL_SUPPORT mengerjakan ticket
 | `GET /api/v1/projects/**` | ✅ | ❌ | ❌ | ✅ (own client) | ❌ |
 | `GET/POST/PUT/DELETE /api/v1/client-quotas/**` | ✅ | ❌ | ❌ | ❌ | ❌ |
 | `GET /api/v1/my-quotas/**` | ✅ | ❌ | ❌ | ✅ | ❌ |
+| `GET/POST/PUT/DELETE /api/v1/service-catalogs/**` | ✅ | ❌ | ❌ | ❌ | ❌ |
 | `POST /api/v1/tickets` | ✅ | ❌ | ❌ | ✅ | ❌ |
 | `GET /api/v1/tickets/**` | ✅ | ✅ (assigned) | ✅ (assigned) | ✅ (own client) | ❌ |
 | `PUT /api/v1/tickets/{id}/status` | ✅ | ✅ | ✅ | ✅ | ❌ |
@@ -214,6 +216,13 @@ TECHNICAL_SUPPORT mengerjakan ticket
 | **MY QUOTA** | | | |
 | `GET` | `/api/v1/my-quotas` | Ambil kuota client sendiri | ADMIN, USER |
 | `GET` | `/api/v1/my-quotas/year/{year}` | Ambil kuota client sendiri per tahun | ADMIN, USER |
+| **SERVICE CATALOG** | | | |
+| `POST` | `/api/v1/service-catalogs` | Buat catalog client (PM/CM) | ADMIN |
+| `GET` | `/api/v1/service-catalogs` | Ambil semua catalog | ADMIN |
+| `GET` | `/api/v1/service-catalogs/{id}` | Ambil catalog by ID | ADMIN |
+| `GET` | `/api/v1/service-catalogs/client/{clientId}` | Ambil catalog by client | ADMIN |
+| `PUT` | `/api/v1/service-catalogs/{id}` | Update services & notes | ADMIN |
+| `DELETE` | `/api/v1/service-catalogs/{id}` | Hapus catalog | ADMIN |
 | **TICKET** | | | |
 | `POST` | `/api/v1/tickets` | Buat ticket baru (JSON / multipart) | ADMIN, USER |
 | `GET` | `/api/v1/tickets` | Ambil ticket sesuai role | ADMIN, SUPPORT, TECHNICAL_SUPPORT, USER |
@@ -617,6 +626,96 @@ curl -H "Authorization: Bearer <TOKEN>" http://localhost:8080/api/v1/my-quotas/y
 > 💡 **Perbedaan dengan Client Quota API:**
 > - `/api/v1/client-quotas` → ADMIN only, bisa CRUD semua kuota semua client
 > - `/api/v1/my-quotas` → ADMIN & USER, hanya bisa **lihat** kuota client sendiri
+
+---
+
+### 🗂 Service Catalog API (ADMIN only)
+
+> ✅ Endpoint untuk mengelola **Service Catalog** — daftar layanan maintenance (PM/CM) yang diberikan untuk setiap client, beserta catatan opsional kontrak/SLA.
+> **Aturan penting:** setiap client maksimal **satu** entry catalog. Untuk mengubah, gunakan endpoint update.
+> Berbeda dengan **Client Quota** yang menetapkan batas pemakaian per tahun, **Service Catalog** hanya menyatakan layanan apa yang termasuk dalam perjanjian.
+
+#### `POST /api/v1/service-catalogs` — Buat Catalog Baru
+
+**Request Body:**
+```json
+{
+  "clientId": 1,
+  "services": ["PM", "CM"],
+  "notes": "Layanan PM bulanan + CM on-demand"
+}
+```
+
+| Field | Tipe | Wajib | Keterangan |
+|-------|------|-------|------------|
+| `clientId` | `number` | ✅ | ID client pemilik catalog |
+| `services` | `array[string]` | ✅ | Minimal satu dari `PM`, `CM` |
+| `notes` | `string` | ❌ | Catatan opsional (maks 2000 karakter) |
+
+**Response — `201 Created`:**
+```json
+{
+  "id": 1,
+  "clientId": 1,
+  "clientCompanyName": "PT Contoh Perusahaan",
+  "services": ["PM", "CM"],
+  "notes": "Layanan PM bulanan + CM on-demand",
+  "createdAt": "2026-05-26T10:00:00",
+  "updatedAt": "2026-05-26T10:00:00"
+}
+```
+
+```bash
+curl -X POST http://localhost:8080/api/v1/service-catalogs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <ADMIN_TOKEN>" \
+  -d '{"clientId":1,"services":["PM","CM"],"notes":"Layanan PM bulanan + CM on-demand"}'
+```
+
+#### `GET /api/v1/service-catalogs` — Ambil Semua Catalog
+```bash
+curl -H "Authorization: Bearer <ADMIN_TOKEN>" http://localhost:8080/api/v1/service-catalogs
+```
+
+#### `GET /api/v1/service-catalogs/{id}` — Ambil Catalog by ID
+```bash
+curl -H "Authorization: Bearer <ADMIN_TOKEN>" http://localhost:8080/api/v1/service-catalogs/1
+```
+
+#### `GET /api/v1/service-catalogs/client/{clientId}` — Ambil Catalog by Client
+```bash
+curl -H "Authorization: Bearer <ADMIN_TOKEN>" \
+  http://localhost:8080/api/v1/service-catalogs/client/1
+```
+
+#### `PUT /api/v1/service-catalogs/{id}` — Update Services & Notes
+
+> Hanya `services` dan `notes` yang bisa diubah. `clientId` tidak bisa dipindah ke client lain.
+
+**Request Body:**
+```json
+{
+  "services": ["PM"],
+  "notes": "Updated: hanya PM"
+}
+```
+
+```bash
+curl -X PUT http://localhost:8080/api/v1/service-catalogs/1 \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <ADMIN_TOKEN>" \
+  -d '{"services":["PM"],"notes":"Updated: hanya PM"}'
+```
+
+#### `DELETE /api/v1/service-catalogs/{id}` — Hapus Catalog
+```bash
+curl -X DELETE -H "Authorization: Bearer <ADMIN_TOKEN>" \
+  http://localhost:8080/api/v1/service-catalogs/1
+```
+
+**Error responses:**
+- `404 Not Found` — client / catalog tidak ditemukan
+- `400 Bad Request` — `services` kosong, atau client sudah punya catalog lain (gunakan `PUT` untuk update)
 
 ---
 
@@ -1113,6 +1212,7 @@ ticketing-backend/
     │   ├── ClientController.java          # CRUD client (ADMIN)
     │   ├── ClientQuotaController.java     # CRUD kuota (ADMIN)
     │   ├── MyQuotaController.java         # User's own quota (ADMIN+USER)
+    │   ├── ServiceCatalogController.java  # CRUD service catalog per client (ADMIN)
     │   ├── TicketController.java          # CRUD ticket (ADMIN+USER)
     │   └── UserController.java            # CRUD user (ADMIN)
     ├── dto/
