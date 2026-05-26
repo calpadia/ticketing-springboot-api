@@ -87,7 +87,7 @@ server.port=8080
 
 # JWT Configuration
 jwt.secret=<your-base64-encoded-256-bit-secret-key>
-jwt.expiration=86400000
+jwt.expiration=7200000
 ```
 
 ---
@@ -113,7 +113,7 @@ Setelah login/register, tambahkan header berikut di setiap request:
 Authorization: Bearer eyJhbGciOiJIUzI1NiJ9...
 ```
 
-Token berlaku **24 jam** (dapat dikonfigurasi via `jwt.expiration`).
+Token berlaku **2 jam** (dapat dikonfigurasi via `jwt.expiration`).
 
 ---
 
