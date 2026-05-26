@@ -819,11 +819,13 @@ curl -H "Authorization: Bearer <TOKEN>" \
 |--------|-------|---------|
 | `400` | Validation Failed | Field required tidak diisi / format invalid |
 | `401` | Unauthorized | Token tidak ada / expired / invalid credentials |
-| `403` | Forbidden | Role tidak memiliki akses ke endpoint |
+| `403` | Forbidden | Role tidak memiliki akses ke endpoint / security policy violation |
 | `404` | Not Found | Resource tidak ditemukan |
-| `409` | Conflict | Data duplikat (email, kuota) |
+| `409` | Conflict | Data duplikat (email, kuota) / password policy violation |
+| `413` | Payload Too Large | File upload melebihi batas maksimum (10MB) |
 | `422` | Quota Exceeded | Kuota maintenance habis |
-| `500` | Internal Server Error | Error tak terduga |
+| `429` | Too Many Requests | Rate limit terlampaui (tunggu 60 detik) |
+| `500` | Internal Server Error | Error tak terduga (detail tidak di-expose ke client) |
 
 ---
 
@@ -836,7 +838,8 @@ ticketing-backend/
 └── src/main/java/com/itsm/ticketing/
     ├── TicketingBackendApplication.java
     ├── config/
-    │   ├── SecurityConfig.java            # Spring Security + RBAC config
+    │   ├── CorsConfig.java                # CORS strict configuration
+    │   ├── SecurityConfig.java            # Spring Security + RBAC + filters
     │   ├── WebSocketConfig.java           # WebSocket STOMP configuration
     │   └── ... (other configs)
     ├── controller/
@@ -867,9 +870,14 @@ ticketing-backend/
     ├── exception/
     │   └── GlobalExceptionHandler.java    # Includes 401, 403 handlers
     ├── security/
+    │   ├── FileValidationUtil.java           # File upload validation (CWE-434)
+    │   ├── InputSanitizer.java               # Input validation & XSS prevention
     │   ├── JwtAuthenticationEntryPoint.java  # 401 handler
     │   ├── JwtAuthenticationFilter.java      # JWT request filter
     │   ├── JwtUtils.java                     # JWT token utilities
+    │   ├── RateLimitingFilter.java           # Rate limiting (CWE-307)
+    │   ├── SecurityAuditLogger.java          # Security event audit logging
+    │   ├── SecurityHeadersFilter.java        # OWASP security headers
     │   └── WebSocketAuthInterceptor.java     # JWT auth for WebSocket
     ├── repository/
     │   ├── ChatAttachmentRepository.java  # Chat attachment queries
@@ -907,3 +915,112 @@ ticketing-backend/
 ## 📜 License
 
 This project is for internal/educational purposes.
+
+---
+
+## 🛡 Security Hardening
+
+Sistem ini telah menerapkan security hardening komprehensif berdasarkan standar keamanan internasional dan nasional:
+
+### Framework & Standar yang Diterapkan
+
+| Framework | Cakupan |
+|-----------|---------|
+| **OWASP Top 10** | A01 (Broken Access Control), A02 (Cryptographic Failures), A03 (Injection), A04 (Insecure Design), A05 (Security Misconfiguration), A07 (Identification & Auth Failures), A09 (Security Logging & Monitoring) |
+| **NIST SP 800-53** | AC-3 (Access Enforcement), AU-2/AU-3 (Audit Events), CM-7 (Least Functionality), IA-11 (Re-authentication), SC-8 (Transmission Confidentiality), SI-3 (Malicious Code Protection), SI-11 (Error Handling) |
+| **NIST SP 800-63B** | Password policy, session management (2 jam expiration) |
+| **CWE/SANS** | CWE-22, CWE-79, CWE-200, CWE-204, CWE-209, CWE-307, CWE-434, CWE-521, CWE-693, CWE-778, CWE-942, CWE-1021 |
+| **BSSN** | Standar Keamanan Aplikasi — Validasi input, audit logging, enkripsi, pembatasan akses |
+
+### Implementasi Security
+
+#### 1. Security Headers (OWASP Secure Headers)
+- `X-Content-Type-Options: nosniff` — Mencegah MIME type sniffing
+- `X-Frame-Options: DENY` — Mencegah clickjacking
+- `Strict-Transport-Security` — Enforce HTTPS
+- `Content-Security-Policy` — Mencegah XSS
+- `Referrer-Policy` — Mencegah information leakage
+- `Permissions-Policy` — Membatasi fitur browser
+- `Cache-Control: no-store` — Mencegah caching data sensitif
+
+#### 2. Rate Limiting (CWE-307)
+- **Auth endpoints** (`/api/v1/auth/**`): 10 request/menit per IP
+- **API endpoints** (`/api/**`): 100 request/menit per IP
+- Response `429 Too Many Requests` dengan header `Retry-After`
+
+#### 3. Password Policy (NIST SP 800-63B)
+- Minimum 8 karakter, maksimum 128 karakter
+- Wajib mengandung: huruf besar, huruf kecil, angka, dan karakter spesial
+- BCrypt dengan strength 12 rounds
+
+#### 4. File Upload Security (CWE-434)
+- Whitelist MIME type (image, document, text, archive)
+- Whitelist file extension
+- Blacklist ekstensi berbahaya (exe, bat, sh, php, dll)
+- Deteksi double extension attack
+- Maksimum file size: 10MB
+- Filename sanitization
+
+#### 5. Path Traversal Protection (CWE-22)
+- Validasi resolved path tetap dalam upload directory
+- Sanitasi filename (hapus `..`, `/`, `\`)
+- UUID prefix untuk stored filename
+
+#### 6. Input Validation & Sanitization (OWASP)
+- Size constraints pada semua DTO fields
+- XSS pattern detection
+- Email format validation
+- Phone number format validation
+- HTML entity encoding
+
+#### 7. Error Handling Hardening (CWE-209)
+- Tidak pernah expose stack trace ke client
+- Generic error message untuk unexpected errors
+- Internal logging untuk debugging
+- Specific handlers untuk security exceptions
+
+#### 8. CORS Configuration (CWE-942)
+- Strict origin whitelist (configurable via properties)
+- Specific allowed methods dan headers
+- Preflight cache 1 jam
+
+#### 9. Security Audit Logging (NIST AU-2)
+- Log semua authentication success/failure
+- Log user registration events
+- Log access denied events
+- Log file upload/rejection events
+- Log suspicious activity (XSS attempts, path traversal)
+- Format: `SECURITY_AUDIT: EVENT_TYPE | details`
+
+#### 10. Session Management
+- JWT token expiration: **2 jam**
+- Stateless session (no server-side session)
+- Token invalidation on expiry
+
+### Konfigurasi Security
+
+```properties
+# CORS (tambahkan domain frontend production)
+security.cors.allowed-origins=http://localhost:3000,http://localhost:5173
+
+# JWT Session (2 jam)
+jwt.expiration=7200000
+
+# Actuator (hanya health endpoint)
+management.endpoints.web.exposure.include=health
+management.endpoint.health.show-details=never
+
+# Error disclosure prevention
+server.error.include-stacktrace=never
+server.error.include-message=never
+```
+
+### Catatan untuk Frontend Developer
+
+Setelah security hardening, perhatikan hal berikut:
+
+1. **Rate Limiting** — Handle response `429 Too Many Requests` dengan retry/backoff
+2. **Password Policy** — Tampilkan requirement saat register (min 8 char, uppercase, lowercase, digit, special char)
+3. **CORS** — Pastikan domain frontend terdaftar di `security.cors.allowed-origins`
+4. **File Upload** — Hanya file dengan extension yang di-whitelist yang diterima (jpg, png, pdf, docx, xlsx, dll)
+5. **Token Expiry** — Token berlaku 2 jam, implementasikan refresh mechanism di client
