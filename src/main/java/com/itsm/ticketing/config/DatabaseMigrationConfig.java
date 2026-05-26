@@ -30,9 +30,9 @@ public class DatabaseMigrationConfig {
                 stmt.execute("ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check");
 
                 // Add new constraint with updated role values
-                stmt.execute("ALTER TABLE users ADD CONSTRAINT users_role_check CHECK (role IN ('ADMIN', 'USER'))");
+                stmt.execute("ALTER TABLE users ADD CONSTRAINT users_role_check CHECK (role IN ('ADMIN', 'SUPPORT', 'TECHNICAL_SUPPORT', 'USER'))");
 
-                log.info("Role constraint updated successfully: ADMIN, USER");
+                log.info("Role constraint updated successfully: ADMIN, SUPPORT, TECHNICAL_SUPPORT, USER");
 
             } catch (Exception e) {
                 log.warn("Role constraint migration skipped or already applied: {}", e.getMessage());

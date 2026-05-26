@@ -43,9 +43,11 @@ public class TicketAssignmentService {
      */
     @Transactional
     public List<TicketAssignmentResponse> assignTicket(Long ticketId, AssignTicketRequest request, User assignedBy) {
-        // Only ADMIN can assign
-        if (assignedBy.getRole() != Role.ADMIN) {
-            throw new AccessDeniedException("Hanya ADMIN yang dapat melakukan assignment ticket");
+        // ADMIN bisa assign ke siapa saja (SUPPORT atau TECHNICAL_SUPPORT).
+        // SUPPORT bisa eskalasi: assign ticket ke TECHNICAL_SUPPORT.
+        if (assignedBy.getRole() != Role.ADMIN && assignedBy.getRole() != Role.SUPPORT) {
+            throw new AccessDeniedException(
+                    "Hanya ADMIN atau SUPPORT yang dapat melakukan assignment ticket");
         }
 
         Ticket ticket = ticketRepository.findById(ticketId)
@@ -65,11 +67,18 @@ public class TicketAssignmentService {
                     .orElseThrow(() -> new ResourceNotFoundException(
                             "User not found with ID: " + supportUserId));
 
-            // Validate user has SUPPORT role
-            if (supportUser.getRole() != Role.SUPPORT) {
+            // Validate target role: SUPPORT atau TECHNICAL_SUPPORT
+            Role targetRole = supportUser.getRole();
+            if (targetRole != Role.SUPPORT && targetRole != Role.TECHNICAL_SUPPORT) {
                 throw new IllegalArgumentException(
                         "User " + supportUser.getName() + " (ID: " + supportUserId
-                                + ") bukan SUPPORT. Hanya user dengan role SUPPORT yang bisa di-assign.");
+                                + ") bukan SUPPORT/TECHNICAL_SUPPORT. Hanya kedua role tersebut yang bisa di-assign.");
+            }
+
+            // SUPPORT hanya boleh assign ke TECHNICAL_SUPPORT (eskalasi), tidak ke sesama SUPPORT
+            if (assignedBy.getRole() == Role.SUPPORT && targetRole != Role.TECHNICAL_SUPPORT) {
+                throw new AccessDeniedException(
+                        "SUPPORT hanya bisa eskalasi ticket ke TECHNICAL_SUPPORT");
             }
 
             // Check if already assigned
@@ -107,8 +116,9 @@ public class TicketAssignmentService {
      */
     @Transactional
     public void unassignTicket(Long ticketId, UnassignTicketRequest request, User currentUser) {
-        if (currentUser.getRole() != Role.ADMIN) {
-            throw new AccessDeniedException("Hanya ADMIN yang dapat melakukan unassignment ticket");
+        if (currentUser.getRole() != Role.ADMIN && currentUser.getRole() != Role.SUPPORT) {
+            throw new AccessDeniedException(
+                    "Hanya ADMIN atau SUPPORT yang dapat melakukan unassignment ticket");
         }
 
         Ticket ticket = ticketRepository.findById(ticketId)
@@ -143,8 +153,9 @@ public class TicketAssignmentService {
      */
     @Transactional
     public List<TicketAssignmentResponse> reassignTicket(Long ticketId, AssignTicketRequest request, User currentUser) {
-        if (currentUser.getRole() != Role.ADMIN) {
-            throw new AccessDeniedException("Hanya ADMIN yang dapat melakukan reassignment ticket");
+        if (currentUser.getRole() != Role.ADMIN && currentUser.getRole() != Role.SUPPORT) {
+            throw new AccessDeniedException(
+                    "Hanya ADMIN atau SUPPORT yang dapat melakukan reassignment ticket");
         }
 
         Ticket ticket = ticketRepository.findById(ticketId)
@@ -194,9 +205,11 @@ public class TicketAssignmentService {
      */
     @Transactional(readOnly = true)
     public List<TicketAssignmentResponse> getMyAssignments(User currentUser) {
-        if (currentUser.getRole() != Role.SUPPORT && currentUser.getRole() != Role.ADMIN) {
+        if (currentUser.getRole() != Role.SUPPORT
+                && currentUser.getRole() != Role.TECHNICAL_SUPPORT
+                && currentUser.getRole() != Role.ADMIN) {
             throw new AccessDeniedException(
-                    "Hanya SUPPORT dan ADMIN yang dapat melihat assignment");
+                    "Hanya SUPPORT, TECHNICAL_SUPPORT, dan ADMIN yang dapat melihat assignment");
         }
 
         return assignmentRepository.findByAssignedToIdAndActiveTrue(currentUser.getId())

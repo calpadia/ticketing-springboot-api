@@ -364,8 +364,9 @@ public class ChatService {
         if (currentUser.getRole() == Role.ADMIN) {
             return; // Admin can access all ticket chats
         }
-        if (currentUser.getRole() == Role.SUPPORT) {
-            // Support can access chat on tickets assigned to them
+        if (currentUser.getRole() == Role.SUPPORT
+                || currentUser.getRole() == Role.TECHNICAL_SUPPORT) {
+            // Support / Technical Support can access chat on tickets assigned to them
             return; // Access control handled at endpoint level
         }
         if (currentUser.getClient() == null ||

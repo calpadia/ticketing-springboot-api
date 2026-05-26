@@ -154,8 +154,9 @@ public class TicketService {
 
         if (currentUser.getRole() == Role.ADMIN) {
             tickets = ticketRepository.findAll();
-        } else if (currentUser.getRole() == Role.SUPPORT) {
-            // SUPPORT: see tickets assigned to them
+        } else if (currentUser.getRole() == Role.SUPPORT
+                || currentUser.getRole() == Role.TECHNICAL_SUPPORT) {
+            // SUPPORT / TECHNICAL_SUPPORT: see tickets assigned to them
             List<Long> assignedTicketIds = assignmentRepository
                     .findByAssignedToIdAndActiveTrue(currentUser.getId())
                     .stream()
@@ -229,8 +230,9 @@ public class TicketService {
         if (currentUser.getRole() == Role.ADMIN) {
             return; // Admin can access all tickets
         }
-        if (currentUser.getRole() == Role.SUPPORT) {
-            // Support can access tickets assigned to them
+        if (currentUser.getRole() == Role.SUPPORT
+                || currentUser.getRole() == Role.TECHNICAL_SUPPORT) {
+            // Support / Technical Support can access tickets assigned to them
             if (assignmentRepository.existsByTicketIdAndAssignedToIdAndActiveTrue(
                     ticket.getId(), currentUser.getId())) {
                 return;

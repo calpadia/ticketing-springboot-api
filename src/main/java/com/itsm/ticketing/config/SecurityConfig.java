@@ -92,20 +92,21 @@ public class SecurityConfig {
                         // User's own quota endpoint - accessible by ADMIN and USER
                         .requestMatchers(HttpMethod.GET, "/api/v1/my-quotas/**").hasAnyRole("ADMIN", "USER")
 
-                        // Ticket endpoints - accessible by ADMIN, SUPPORT, and USER
+                        // Ticket endpoints - accessible by ADMIN, SUPPORT, TECHNICAL_SUPPORT, and USER
                         .requestMatchers(HttpMethod.POST, "/api/v1/tickets").hasAnyRole("ADMIN", "USER")
-                        .requestMatchers(HttpMethod.GET, "/api/v1/tickets/my-assignments").hasAnyRole("ADMIN", "SUPPORT")
-                        .requestMatchers(HttpMethod.GET, "/api/v1/tickets/**").hasAnyRole("ADMIN", "SUPPORT", "USER")
-                        .requestMatchers(HttpMethod.PUT, "/api/v1/tickets/**").hasAnyRole("ADMIN", "SUPPORT", "USER")
-                        .requestMatchers(HttpMethod.POST, "/api/v1/tickets/*/assign").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.POST, "/api/v1/tickets/*/unassign").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.POST, "/api/v1/tickets/*/reassign").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/tickets/my-assignments").hasAnyRole("ADMIN", "SUPPORT", "TECHNICAL_SUPPORT")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/tickets/**").hasAnyRole("ADMIN", "SUPPORT", "TECHNICAL_SUPPORT", "USER")
+                        .requestMatchers(HttpMethod.PUT, "/api/v1/tickets/**").hasAnyRole("ADMIN", "SUPPORT", "TECHNICAL_SUPPORT", "USER")
+                        // SUPPORT boleh assign/reassign ticket ke TECHNICAL_SUPPORT (eskalasi)
+                        .requestMatchers(HttpMethod.POST, "/api/v1/tickets/*/assign").hasAnyRole("ADMIN", "SUPPORT")
+                        .requestMatchers(HttpMethod.POST, "/api/v1/tickets/*/unassign").hasAnyRole("ADMIN", "SUPPORT")
+                        .requestMatchers(HttpMethod.POST, "/api/v1/tickets/*/reassign").hasAnyRole("ADMIN", "SUPPORT")
 
-                        // Chat endpoints - accessible by ADMIN, SUPPORT, and USER
-                        .requestMatchers("/api/v1/chat/**").hasAnyRole("ADMIN", "SUPPORT", "USER")
+                        // Chat endpoints - accessible by ADMIN, SUPPORT, TECHNICAL_SUPPORT, and USER
+                        .requestMatchers("/api/v1/chat/**").hasAnyRole("ADMIN", "SUPPORT", "TECHNICAL_SUPPORT", "USER")
 
-                        // Attachment endpoints - accessible by ADMIN, SUPPORT, and USER
-                        .requestMatchers("/api/v1/attachments/**").hasAnyRole("ADMIN", "SUPPORT", "USER")
+                        // Attachment endpoints - accessible by ADMIN, SUPPORT, TECHNICAL_SUPPORT, and USER
+                        .requestMatchers("/api/v1/attachments/**").hasAnyRole("ADMIN", "SUPPORT", "TECHNICAL_SUPPORT", "USER")
 
                         // All other requests require authentication
                         .anyRequest().authenticated()
