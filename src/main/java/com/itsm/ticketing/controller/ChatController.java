@@ -64,6 +64,23 @@ public class ChatController {
         log.info("Message broadcast to {}", destination);
     }
 
+    /**
+     * Handle exceptions thrown from {@link #sendMessage}.
+     * Without this, errors are silently swallowed by Spring's WebSocket
+     * dispatcher and the user has no idea why the message did not arrive.
+     * The error is sent back privately to the originating user via
+     * {@code /user/queue/errors} so the frontend can show a toast.
+     */
+    @org.springframework.messaging.handler.annotation.MessageExceptionHandler
+    @org.springframework.messaging.simp.annotation.SendToUser(value = "/queue/errors", broadcast = false)
+    public java.util.Map<String, Object> handleChatException(Exception ex) {
+        log.warn("Chat WebSocket error: {}", ex.getMessage());
+        return java.util.Map.of(
+                "error", ex.getClass().getSimpleName(),
+                "message", ex.getMessage() != null ? ex.getMessage() : "Internal error"
+        );
+    }
+
     // ========================================================================
     // REST Endpoints (Chat History)
     // ========================================================================
