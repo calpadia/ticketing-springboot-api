@@ -82,6 +82,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/users/**").hasRole("ADMIN")
                         .requestMatchers("/api/v1/clients/**").hasRole("ADMIN")
                         .requestMatchers("/api/v1/client-quotas/**").hasRole("ADMIN")
+                        .requestMatchers("/api/v1/service-catalogs/**").hasRole("ADMIN")
 
                         // Project endpoints - ADMIN full CRUD, USER can read own client's projects
                         .requestMatchers(HttpMethod.POST, "/api/v1/projects").hasRole("ADMIN")
