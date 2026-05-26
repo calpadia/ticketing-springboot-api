@@ -44,5 +44,8 @@ public class TicketResponse {
     // Attachments
     private List<AttachmentResponse> attachments;
 
+    // Assigned support engineers
+    private List<TicketAssignmentResponse> assignments;
+
     private LocalDateTime createdAt;
 }

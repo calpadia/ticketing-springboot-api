@@ -2,6 +2,7 @@ package com.itsm.ticketing.service;
 
 import com.itsm.ticketing.dto.AttachmentResponse;
 import com.itsm.ticketing.dto.CreateTicketRequest;
+import com.itsm.ticketing.dto.TicketAssignmentResponse;
 import com.itsm.ticketing.dto.TicketProgressLogResponse;
 import com.itsm.ticketing.dto.TicketResponse;
 import com.itsm.ticketing.dto.UpdateTicketStatusRequest;
@@ -11,6 +12,7 @@ import com.itsm.ticketing.exception.ResourceNotFoundException;
 import com.itsm.ticketing.repository.ClientQuotaRepository;
 import com.itsm.ticketing.repository.ClientRepository;
 import com.itsm.ticketing.repository.ProjectRepository;
+import com.itsm.ticketing.repository.TicketAssignmentRepository;
 import com.itsm.ticketing.repository.TicketProgressLogRepository;
 import com.itsm.ticketing.repository.TicketRepository;
 import com.itsm.ticketing.repository.UserRepository;
@@ -42,6 +44,7 @@ public class TicketService {
     private final ProjectRepository projectRepository;
     private final FileStorageService fileStorageService;
     private final TicketProgressLogRepository progressLogRepository;
+    private final TicketAssignmentRepository assignmentRepository;
 
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMdd");
 
@@ -134,7 +137,9 @@ public class TicketService {
 
     /**
      * Get all tickets visible to the current user.
-     * ADMIN: sees all tickets. USER: sees only their client's tickets.
+     * ADMIN: sees all tickets.
+     * SUPPORT: sees tickets assigned to them.
+     * USER: sees only their client's tickets.
      *
      * @param currentUser the authenticated user
      * @return list of ticket responses
@@ -145,6 +150,17 @@ public class TicketService {
 
         if (currentUser.getRole() == Role.ADMIN) {
             tickets = ticketRepository.findAll();
+        } else if (currentUser.getRole() == Role.SUPPORT) {
+            // SUPPORT: see tickets assigned to them
+            List<Long> assignedTicketIds = assignmentRepository
+                    .findByAssignedToIdAndActiveTrue(currentUser.getId())
+                    .stream()
+                    .map(a -> a.getTicket().getId())
+                    .collect(Collectors.toList());
+            if (assignedTicketIds.isEmpty()) {
+                return Collections.emptyList();
+            }
+            tickets = ticketRepository.findAllById(assignedTicketIds);
         } else {
             // USER: only see tickets from their own client
             if (currentUser.getClient() == null) {
@@ -201,11 +217,22 @@ public class TicketService {
 
     /**
      * Validates that the current user has access to this ticket.
-     * ADMIN: always allowed. USER: only if the ticket belongs to their client.
+     * ADMIN: always allowed.
+     * SUPPORT: allowed if assigned to this ticket.
+     * USER: only if the ticket belongs to their client.
      */
     private void validateTicketAccess(Ticket ticket, User currentUser) {
         if (currentUser.getRole() == Role.ADMIN) {
             return; // Admin can access all tickets
+        }
+        if (currentUser.getRole() == Role.SUPPORT) {
+            // Support can access tickets assigned to them
+            if (assignmentRepository.existsByTicketIdAndAssignedToIdAndActiveTrue(
+                    ticket.getId(), currentUser.getId())) {
+                return;
+            }
+            throw new org.springframework.security.access.AccessDeniedException(
+                    "Anda tidak di-assign ke ticket ini");
         }
         if (currentUser.getClient() == null ||
                 !currentUser.getClient().getId().equals(ticket.getClient().getId())) {
@@ -263,6 +290,13 @@ public class TicketService {
      * Maps a Ticket entity to a TicketResponse DTO.
      */
     private TicketResponse mapToResponse(Ticket ticket, List<AttachmentResponse> attachments) {
+        // Get active assignments for this ticket
+        List<TicketAssignmentResponse> assignments = assignmentRepository
+                .findByTicketIdAndActiveTrue(ticket.getId())
+                .stream()
+                .map(this::mapAssignmentToResponse)
+                .collect(Collectors.toList());
+
         TicketResponse.TicketResponseBuilder builder = TicketResponse.builder()
                 .id(ticket.getId())
                 .ticketNumber(ticket.getTicketNumber())
@@ -276,6 +310,7 @@ public class TicketService {
                 .requesterId(ticket.getRequester().getId())
                 .requesterName(ticket.getRequester().getName())
                 .attachments(attachments)
+                .assignments(assignments)
                 .createdAt(ticket.getCreatedAt());
 
         // Include project info if available
@@ -285,6 +320,26 @@ public class TicketService {
         }
 
         return builder.build();
+    }
+
+    /**
+     * Maps a TicketAssignment entity to response DTO.
+     */
+    private TicketAssignmentResponse mapAssignmentToResponse(TicketAssignment assignment) {
+        return TicketAssignmentResponse.builder()
+                .id(assignment.getId())
+                .ticketId(assignment.getTicket().getId())
+                .ticketNumber(assignment.getTicket().getTicketNumber())
+                .ticketTitle(assignment.getTicket().getTitle())
+                .assignedToId(assignment.getAssignedTo().getId())
+                .assignedToName(assignment.getAssignedTo().getName())
+                .assignedToEmail(assignment.getAssignedTo().getEmail())
+                .assignedById(assignment.getAssignedBy().getId())
+                .assignedByName(assignment.getAssignedBy().getName())
+                .notes(assignment.getNotes())
+                .assignedAt(assignment.getAssignedAt())
+                .active(assignment.isActive())
+                .build();
     }
 
     // ========================================================================

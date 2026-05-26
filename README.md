@@ -123,24 +123,30 @@ Token berlaku **2 jam** (dapat dikonfigurasi via `jwt.expiration`).
 
 | Role | Deskripsi |
 |------|-----------|
-| `ADMIN` | Full access ke semua fitur sistem |
+| `ADMIN` | Full access ke semua fitur sistem, dapat assign ticket ke support |
+| `SUPPORT` | Technical support staff, dapat di-assign ke ticket dan mengerjakannya |
 | `USER` | Akses terbatas — hanya bisa membuat dan melihat ticket |
 
 ### Access Control Matrix
 
-| Endpoint | ADMIN | USER | Public |
-|----------|-------|------|--------|
-| `POST /api/v1/auth/register` | — | — | ✅ |
-| `POST /api/v1/auth/login` | — | — | ✅ |
-| `GET/POST/PUT/DELETE /api/v1/users/**` | ✅ | ❌ | ❌ |
-| `GET/POST/PUT/DELETE /api/v1/clients/**` | ✅ | ❌ | ❌ |
-| `GET/POST/PUT/DELETE /api/v1/client-quotas/**` | ✅ | ❌ | ❌ |
-| `GET /api/v1/my-quotas/**` | ✅ | ✅ | ❌ |
-| `POST /api/v1/tickets` | ✅ | ✅ | ❌ |
-| `GET /api/v1/tickets/**` | ✅ | ✅ | ❌ |
-| `GET/POST /api/v1/chat/**` | ✅ | ✅ | ❌ |
-| `WebSocket /ws` (handshake) | — | — | ✅ |
-| `STOMP /app/chat.send` | ✅ | ✅ | ❌ |
+| Endpoint | ADMIN | SUPPORT | USER | Public |
+|----------|-------|---------|------|--------|
+| `POST /api/v1/auth/register` | — | — | — | ✅ |
+| `POST /api/v1/auth/login` | — | — | — | ✅ |
+| `GET/POST/PUT/DELETE /api/v1/users/**` | ✅ | ❌ | ❌ | ❌ |
+| `GET/POST/PUT/DELETE /api/v1/clients/**` | ✅ | ❌ | ❌ | ❌ |
+| `GET/POST/PUT/DELETE /api/v1/client-quotas/**` | ✅ | ❌ | ❌ | ❌ |
+| `GET /api/v1/my-quotas/**` | ✅ | ❌ | ✅ | ❌ |
+| `POST /api/v1/tickets` | ✅ | ❌ | ✅ | ❌ |
+| `GET /api/v1/tickets/**` | ✅ | ✅ (assigned) | ✅ (own client) | ❌ |
+| `POST /api/v1/tickets/{id}/assign` | ✅ | ❌ | ❌ | ❌ |
+| `POST /api/v1/tickets/{id}/unassign` | ✅ | ❌ | ❌ | ❌ |
+| `POST /api/v1/tickets/{id}/reassign` | ✅ | ❌ | ❌ | ❌ |
+| `GET /api/v1/tickets/{id}/assignments` | ✅ | ✅ | ❌ | ❌ |
+| `GET /api/v1/tickets/my-assignments` | ✅ | ✅ | ❌ | ❌ |
+| `GET/POST /api/v1/chat/**` | ✅ | ✅ | ✅ | ❌ |
+| `WebSocket /ws` (handshake) | — | — | — | ✅ |
+| `STOMP /app/chat.send` | ✅ | ✅ | ✅ | ❌ |
 
 ---
 
@@ -193,6 +199,12 @@ Token berlaku **2 jam** (dapat dikonfigurasi via `jwt.expiration`).
 | **CHAT ATTACHMENT** | | | |
 | `POST` | `/api/v1/chat/upload` | Upload file untuk chat | ADMIN, USER |
 | `GET` | `/api/v1/chat/attachments/{id}/download` | Download file chat | ADMIN, USER |
+| **TICKET ASSIGNMENT** | | | |
+| `POST` | `/api/v1/tickets/{id}/assign` | Assign support ke ticket | ADMIN |
+| `POST` | `/api/v1/tickets/{id}/unassign` | Unassign support dari ticket | ADMIN |
+| `POST` | `/api/v1/tickets/{id}/reassign` | Reassign ticket ke support baru | ADMIN |
+| `GET` | `/api/v1/tickets/{id}/assignments` | Lihat assignment ticket | ADMIN, SUPPORT |
+| `GET` | `/api/v1/tickets/my-assignments` | Lihat ticket yang di-assign ke saya | ADMIN, SUPPORT |
 
 ---
 
@@ -576,6 +588,114 @@ curl -H "Authorization: Bearer <TOKEN>" http://localhost:8080/api/v1/tickets/1/p
 
 ---
 
+### 🎯 Ticket Assignment API (ADMIN only for assign/unassign)
+
+> ✅ Fitur assignment memungkinkan ADMIN untuk menugaskan satu atau lebih **SUPPORT** engineer ke sebuah ticket.
+> SUPPORT engineer hanya bisa melihat ticket yang di-assign ke mereka.
+
+#### `POST /api/v1/tickets/{id}/assign` — Assign Support ke Ticket
+
+Assign satu atau lebih support engineer ke ticket. Bisa assign multiple orang sekaligus.
+
+**Request Body:**
+```json
+{
+  "supportUserIds": [3, 5, 7],
+  "notes": "Tim teknis untuk handle server issue"
+}
+```
+
+| Field | Tipe | Wajib | Keterangan |
+|-------|------|-------|------------|
+| `supportUserIds` | `array[number]` | ✅ | List ID user dengan role SUPPORT |
+| `notes` | `string` | ❌ | Catatan assignment (maks 1000 karakter) |
+
+**Response — `201 Created`:**
+```json
+[
+  {
+    "id": 1,
+    "ticketId": 1,
+    "ticketNumber": "TKT-20260526-001",
+    "ticketTitle": "Server down",
+    "assignedToId": 3,
+    "assignedToName": "Budi Teknisi",
+    "assignedToEmail": "budi@support.com",
+    "assignedById": 1,
+    "assignedByName": "Admin IT",
+    "notes": "Tim teknis untuk handle server issue",
+    "assignedAt": "2026-05-26T10:00:00",
+    "active": true
+  }
+]
+```
+
+**cURL:**
+```bash
+curl -X POST http://localhost:8080/api/v1/tickets/1/assign \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <ADMIN_TOKEN>" \
+  -d '{"supportUserIds": [3, 5], "notes": "Assign ke tim network"}'
+```
+
+#### `POST /api/v1/tickets/{id}/unassign` — Unassign Support dari Ticket
+
+```bash
+curl -X POST http://localhost:8080/api/v1/tickets/1/unassign \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <ADMIN_TOKEN>" \
+  -d '{"supportUserIds": [5], "reason": "Pindah ke project lain"}'
+```
+
+#### `POST /api/v1/tickets/{id}/reassign` — Reassign Ticket (Ganti Semua Support)
+
+Menghapus semua assignment lama dan assign support baru.
+
+```bash
+curl -X POST http://localhost:8080/api/v1/tickets/1/reassign \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <ADMIN_TOKEN>" \
+  -d '{"supportUserIds": [8, 9], "notes": "Reassign ke tim baru"}'
+```
+
+#### `GET /api/v1/tickets/{id}/assignments` — Lihat Assignment Ticket
+
+```bash
+curl -H "Authorization: Bearer <TOKEN>" \
+  http://localhost:8080/api/v1/tickets/1/assignments
+```
+
+#### `GET /api/v1/tickets/my-assignments` — Lihat Ticket yang Di-assign ke Saya
+
+Endpoint untuk SUPPORT melihat daftar ticket yang ditugaskan ke mereka.
+
+```bash
+curl -H "Authorization: Bearer <SUPPORT_TOKEN>" \
+  http://localhost:8080/api/v1/tickets/my-assignments
+```
+
+**Response — `200 OK`:**
+```json
+[
+  {
+    "id": 1,
+    "ticketId": 1,
+    "ticketNumber": "TKT-20260526-001",
+    "ticketTitle": "Server down",
+    "assignedToId": 3,
+    "assignedToName": "Budi Teknisi",
+    "assignedToEmail": "budi@support.com",
+    "assignedById": 1,
+    "assignedByName": "Admin IT",
+    "notes": "Handle server issue",
+    "assignedAt": "2026-05-26T10:00:00",
+    "active": true
+  }
+]
+```
+
+---
+
 ### 💬 Chat API (WebSocket + REST)
 
 > ✅ Chat API dapat diakses oleh role **ADMIN** dan **USER**.
@@ -773,7 +893,8 @@ curl -H "Authorization: Bearer <TOKEN>" \
 ### Role
 | Nilai | Keterangan |
 |-------|------------|
-| `ADMIN` | Full access ke semua fitur |
+| `ADMIN` | Full access ke semua fitur, dapat assign ticket |
+| `SUPPORT` | Technical support, dapat di-assign ke ticket dan mengerjakannya |
 | `USER` | Hanya bisa create & view ticket |
 
 ### Priority

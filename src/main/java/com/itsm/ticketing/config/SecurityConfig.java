@@ -84,19 +84,23 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/client-quotas/**").hasRole("ADMIN")
                         .requestMatchers("/api/v1/projects/**").hasRole("ADMIN")
 
-                        // User's own quota endpoint - accessible by both ADMIN and USER
+                        // User's own quota endpoint - accessible by ADMIN and USER
                         .requestMatchers(HttpMethod.GET, "/api/v1/my-quotas/**").hasAnyRole("ADMIN", "USER")
 
-                        // Ticket endpoints - accessible by both ADMIN and USER
+                        // Ticket endpoints - accessible by ADMIN, SUPPORT, and USER
                         .requestMatchers(HttpMethod.POST, "/api/v1/tickets").hasAnyRole("ADMIN", "USER")
-                        .requestMatchers(HttpMethod.GET, "/api/v1/tickets/**").hasAnyRole("ADMIN", "USER")
-                        .requestMatchers(HttpMethod.PUT, "/api/v1/tickets/**").hasAnyRole("ADMIN", "USER")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/tickets/my-assignments").hasAnyRole("ADMIN", "SUPPORT")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/tickets/**").hasAnyRole("ADMIN", "SUPPORT", "USER")
+                        .requestMatchers(HttpMethod.PUT, "/api/v1/tickets/**").hasAnyRole("ADMIN", "SUPPORT", "USER")
+                        .requestMatchers(HttpMethod.POST, "/api/v1/tickets/*/assign").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/v1/tickets/*/unassign").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/v1/tickets/*/reassign").hasRole("ADMIN")
 
-                        // Chat endpoints - accessible by both ADMIN and USER
-                        .requestMatchers("/api/v1/chat/**").hasAnyRole("ADMIN", "USER")
+                        // Chat endpoints - accessible by ADMIN, SUPPORT, and USER
+                        .requestMatchers("/api/v1/chat/**").hasAnyRole("ADMIN", "SUPPORT", "USER")
 
-                        // Attachment endpoints - accessible by both ADMIN and USER
-                        .requestMatchers("/api/v1/attachments/**").hasAnyRole("ADMIN", "USER")
+                        // Attachment endpoints - accessible by ADMIN, SUPPORT, and USER
+                        .requestMatchers("/api/v1/attachments/**").hasAnyRole("ADMIN", "SUPPORT", "USER")
 
                         // All other requests require authentication
                         .anyRequest().authenticated()

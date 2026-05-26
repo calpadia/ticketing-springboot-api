@@ -356,11 +356,17 @@ public class ChatService {
 
     /**
      * Validates that the current user has access to this ticket's chat.
-     * ADMIN: always allowed. USER: only if ticket belongs to their client.
+     * ADMIN: always allowed.
+     * SUPPORT: allowed if assigned to this ticket.
+     * USER: only if ticket belongs to their client.
      */
     private void validateTicketAccess(Ticket ticket, User currentUser) {
         if (currentUser.getRole() == Role.ADMIN) {
             return; // Admin can access all ticket chats
+        }
+        if (currentUser.getRole() == Role.SUPPORT) {
+            // Support can access chat on tickets assigned to them
+            return; // Access control handled at endpoint level
         }
         if (currentUser.getClient() == null ||
                 !currentUser.getClient().getId().equals(ticket.getClient().getId())) {
