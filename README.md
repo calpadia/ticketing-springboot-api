@@ -1,6 +1,6 @@
 # 🎫 B2B ITSM Ticketing System — Backend API
 
-Sistem ticketing untuk manajemen IT Service Management (ITSM) berbasis B2B. Backend dibangun dengan Spring Boot dan PostgreSQL, mendukung **JWT Authentication**, **Role-Based Access Control (RBAC)** dengan role ADMIN dan USER, serta **Real-time Chat** via WebSocket.
+Sistem ticketing untuk manajemen IT Service Management (ITSM) berbasis B2B. Backend dibangun dengan Spring Boot dan PostgreSQL, mendukung **JWT Authentication**, **Role-Based Access Control (RBAC)** dengan empat tingkat role (ADMIN, SUPPORT, TECHNICAL_SUPPORT, USER), **alur eskalasi tiket Tier 1 → Tier 2**, serta **Real-time Chat** via WebSocket.
 
 ---
 
@@ -16,11 +16,14 @@ Sistem ticketing untuk manajemen IT Service Management (ITSM) berbasis B2B. Back
   - [Auth API](#-auth-api)
   - [User API](#-user-api)
   - [Client API](#-client-api)
+  - [Client Support API](#-client-support-api-admin-only)
+  - [Project API](#-project-api)
   - [Client Quota API](#-client-quota-api)
   - [My Quota API](#-my-quota-api-admin--user)
   - [Ticket API](#-ticket-api)
+  - [Ticket Assignment API](#-ticket-assignment-api)
   - [Chat API (WebSocket + REST)](#-chat-api-websocket--rest)
-  - [Chat Attachment API](#-chat-attachment-api-admin--user)
+  - [Chat Attachment API](#-chat-attachment-api)
 - [Enum Reference](#-enum-reference)
 - [Error Handling](#-error-handling)
 
@@ -121,32 +124,49 @@ Token berlaku **2 jam** (dapat dikonfigurasi via `jwt.expiration`).
 
 ### Role yang Tersedia
 
-| Role | Deskripsi |
-|------|-----------|
-| `ADMIN` | Full access ke semua fitur sistem, dapat assign ticket ke support |
-| `SUPPORT` | Technical support staff, dapat di-assign ke ticket dan mengerjakannya |
-| `USER` | Akses terbatas — hanya bisa membuat dan melihat ticket |
+| Role | Tier | Deskripsi |
+|------|------|-----------|
+| `ADMIN` | — | Full access ke semua fitur sistem. Bisa CRUD user/client/quota/project, assign ticket ke siapa saja. |
+| `SUPPORT` | Tier 1 | Customer-facing support. Auto-assigned ke ticket dari client-nya, bisa **eskalasi** ticket ke `TECHNICAL_SUPPORT`. |
+| `TECHNICAL_SUPPORT` | Tier 2/3 | Technical engineer. Hanya menerima ticket eskalasi dari SUPPORT/ADMIN dan mengerjakan ticket yang di-assign. |
+| `USER` | — | Client user. Bisa create ticket, melihat ticket milik client-nya, dan chat. |
+
+### Alur Eskalasi Tiket
+
+```
+USER buat ticket
+    ↓
+SUPPORT (Tier 1) auto-assigned (via client-supports)
+    ↓
+SUPPORT eskalasi ke TECHNICAL_SUPPORT (Tier 2)  ← POST /api/v1/tickets/{id}/assign
+    ↓
+TECHNICAL_SUPPORT mengerjakan ticket
+```
 
 ### Access Control Matrix
 
-| Endpoint | ADMIN | SUPPORT | USER | Public |
-|----------|-------|---------|------|--------|
-| `POST /api/v1/auth/register` | — | — | — | ✅ |
-| `POST /api/v1/auth/login` | — | — | — | ✅ |
-| `GET/POST/PUT/DELETE /api/v1/users/**` | ✅ | ❌ | ❌ | ❌ |
-| `GET/POST/PUT/DELETE /api/v1/clients/**` | ✅ | ❌ | ❌ | ❌ |
-| `GET/POST/PUT/DELETE /api/v1/client-quotas/**` | ✅ | ❌ | ❌ | ❌ |
-| `GET /api/v1/my-quotas/**` | ✅ | ❌ | ✅ | ❌ |
-| `POST /api/v1/tickets` | ✅ | ❌ | ✅ | ❌ |
-| `GET /api/v1/tickets/**` | ✅ | ✅ (assigned) | ✅ (own client) | ❌ |
-| `POST /api/v1/tickets/{id}/assign` | ✅ | ❌ | ❌ | ❌ |
-| `POST /api/v1/tickets/{id}/unassign` | ✅ | ❌ | ❌ | ❌ |
-| `POST /api/v1/tickets/{id}/reassign` | ✅ | ❌ | ❌ | ❌ |
-| `GET /api/v1/tickets/{id}/assignments` | ✅ | ✅ | ❌ | ❌ |
-| `GET /api/v1/tickets/my-assignments` | ✅ | ✅ | ❌ | ❌ |
-| `GET/POST /api/v1/chat/**` | ✅ | ✅ | ✅ | ❌ |
-| `WebSocket /ws` (handshake) | — | — | — | ✅ |
-| `STOMP /app/chat.send` | ✅ | ✅ | ✅ | ❌ |
+| Endpoint | ADMIN | SUPPORT | TECHNICAL_SUPPORT | USER | Public |
+|----------|-------|---------|-------------------|------|--------|
+| `POST /api/v1/auth/register` | — | — | — | — | ✅ |
+| `POST /api/v1/auth/login` | — | — | — | — | ✅ |
+| `GET/POST/PUT/DELETE /api/v1/users/**` | ✅ | ❌ | ❌ | ❌ | ❌ |
+| `GET/POST/PUT/DELETE /api/v1/clients/**` | ✅ | ❌ | ❌ | ❌ | ❌ |
+| `POST/DELETE/GET /api/v1/clients/{id}/supports` | ✅ | ❌ | ❌ | ❌ | ❌ |
+| `POST/PUT/DELETE /api/v1/projects/**` | ✅ | ❌ | ❌ | ❌ | ❌ |
+| `GET /api/v1/projects/**` | ✅ | ❌ | ❌ | ✅ (own client) | ❌ |
+| `GET/POST/PUT/DELETE /api/v1/client-quotas/**` | ✅ | ❌ | ❌ | ❌ | ❌ |
+| `GET /api/v1/my-quotas/**` | ✅ | ❌ | ❌ | ✅ | ❌ |
+| `POST /api/v1/tickets` | ✅ | ❌ | ❌ | ✅ | ❌ |
+| `GET /api/v1/tickets/**` | ✅ | ✅ (assigned) | ✅ (assigned) | ✅ (own client) | ❌ |
+| `PUT /api/v1/tickets/{id}/status` | ✅ | ✅ | ✅ | ✅ | ❌ |
+| `POST /api/v1/tickets/{id}/assign` | ✅ (→ siapa saja) | ✅ (→ TECHNICAL_SUPPORT) | ❌ | ❌ | ❌ |
+| `POST /api/v1/tickets/{id}/unassign` | ✅ | ✅ | ❌ | ❌ | ❌ |
+| `POST /api/v1/tickets/{id}/reassign` | ✅ | ✅ | ❌ | ❌ | ❌ |
+| `GET /api/v1/tickets/{id}/assignments` | ✅ | ✅ | ✅ | ❌ | ❌ |
+| `GET /api/v1/tickets/my-assignments` | ✅ | ✅ | ✅ | ❌ | ❌ |
+| `GET/POST /api/v1/chat/**` | ✅ | ✅ | ✅ | ✅ | ❌ |
+| `WebSocket /ws` (handshake) | — | — | — | — | ✅ |
+| `STOMP /app/chat.send` | ✅ | ✅ | ✅ | ✅ | ❌ |
 
 ---
 
@@ -173,6 +193,17 @@ Token berlaku **2 jam** (dapat dikonfigurasi via `jwt.expiration`).
 | `GET` | `/api/v1/clients/{id}` | Ambil client by ID | ADMIN |
 | `PUT` | `/api/v1/clients/{id}` | Update client | ADMIN |
 | `DELETE` | `/api/v1/clients/{id}` | Hapus client | ADMIN |
+| **CLIENT SUPPORT** | | | |
+| `POST` | `/api/v1/clients/{id}/supports` | Tambah SUPPORT ke client | ADMIN |
+| `GET` | `/api/v1/clients/{id}/supports` | Lihat SUPPORT untuk client | ADMIN |
+| `DELETE` | `/api/v1/clients/{id}/supports` | Hapus SUPPORT dari client | ADMIN |
+| **PROJECT** | | | |
+| `POST` | `/api/v1/projects` | Buat project baru | ADMIN |
+| `GET` | `/api/v1/projects` | Ambil semua project | ADMIN, USER |
+| `GET` | `/api/v1/projects/{id}` | Ambil project by ID | ADMIN, USER |
+| `GET` | `/api/v1/projects/client/{clientId}` | Project per client | ADMIN, USER |
+| `PUT` | `/api/v1/projects/{id}` | Update project | ADMIN |
+| `DELETE` | `/api/v1/projects/{id}` | Hapus project | ADMIN |
 | **CLIENT QUOTA** | | | |
 | `POST` | `/api/v1/client-quotas` | Buat kuota baru | ADMIN |
 | `GET` | `/api/v1/client-quotas` | Ambil semua kuota | ADMIN |
@@ -184,27 +215,30 @@ Token berlaku **2 jam** (dapat dikonfigurasi via `jwt.expiration`).
 | `GET` | `/api/v1/my-quotas` | Ambil kuota client sendiri | ADMIN, USER |
 | `GET` | `/api/v1/my-quotas/year/{year}` | Ambil kuota client sendiri per tahun | ADMIN, USER |
 | **TICKET** | | | |
-| `POST` | `/api/v1/tickets` | Buat ticket baru | ADMIN, USER |
-| `GET` | `/api/v1/tickets` | Ambil semua ticket | ADMIN, USER |
-| `GET` | `/api/v1/tickets/{id}` | Ambil ticket by ID | ADMIN, USER |
-| `GET` | `/api/v1/tickets/number/{no}` | Ambil ticket by nomor | ADMIN, USER |
-| `PUT` | `/api/v1/tickets/{id}/status` | Update status ticket | ADMIN, USER |
-| `GET` | `/api/v1/tickets/{id}/progress` | Riwayat progress ticket | ADMIN, USER |
+| `POST` | `/api/v1/tickets` | Buat ticket baru (JSON / multipart) | ADMIN, USER |
+| `GET` | `/api/v1/tickets` | Ambil ticket sesuai role | ADMIN, SUPPORT, TECHNICAL_SUPPORT, USER |
+| `GET` | `/api/v1/tickets/{id}` | Ambil ticket by ID | ADMIN, SUPPORT, TECHNICAL_SUPPORT, USER |
+| `GET` | `/api/v1/tickets/number/{no}` | Ambil ticket by nomor | ADMIN, SUPPORT, TECHNICAL_SUPPORT, USER |
+| `PUT` | `/api/v1/tickets/{id}/status` | Update status ticket | ADMIN, SUPPORT, TECHNICAL_SUPPORT, USER |
+| `GET` | `/api/v1/tickets/{id}/progress` | Riwayat progress ticket | ADMIN, SUPPORT, TECHNICAL_SUPPORT, USER |
+| **TICKET ASSIGNMENT** | | | |
+| `POST` | `/api/v1/tickets/{id}/assign` | Assign / eskalasi ticket | ADMIN, SUPPORT |
+| `POST` | `/api/v1/tickets/{id}/unassign` | Unassign ticket | ADMIN, SUPPORT |
+| `POST` | `/api/v1/tickets/{id}/reassign` | Reassign ticket | ADMIN, SUPPORT |
+| `GET` | `/api/v1/tickets/{id}/assignments` | Lihat assignment ticket | ADMIN, SUPPORT, TECHNICAL_SUPPORT |
+| `GET` | `/api/v1/tickets/my-assignments` | Ticket yang di-assign ke saya | ADMIN, SUPPORT, TECHNICAL_SUPPORT |
+| **ATTACHMENT** | | | |
+| `GET` | `/api/v1/attachments/ticket/{ticketId}` | Lampiran ticket | ADMIN, SUPPORT, TECHNICAL_SUPPORT, USER |
+| `GET` | `/api/v1/attachments/{id}/download` | Download lampiran ticket | ADMIN, SUPPORT, TECHNICAL_SUPPORT, USER |
 | **CHAT** | | | |
 | `WS` | `/ws` | WebSocket handshake (SockJS) | Public |
-| `STOMP` | `/app/chat.send` | Kirim pesan chat real-time | ADMIN, USER |
-| `STOMP` | `/topic/chat/{ticketId}` | Subscribe pesan chat | ADMIN, USER |
-| `GET` | `/api/v1/chat/{ticketId}` | Histori chat by ticket ID | ADMIN, USER |
-| `GET` | `/api/v1/chat/ticket/{no}` | Histori chat by ticket number | ADMIN, USER |
+| `STOMP` | `/app/chat.send` | Kirim pesan chat real-time | ADMIN, SUPPORT, TECHNICAL_SUPPORT, USER |
+| `STOMP` | `/topic/chat/{ticketId}` | Subscribe pesan chat | ADMIN, SUPPORT, TECHNICAL_SUPPORT, USER |
+| `GET` | `/api/v1/chat/{ticketId}` | Histori chat by ticket ID | ADMIN, SUPPORT, TECHNICAL_SUPPORT, USER |
+| `GET` | `/api/v1/chat/ticket/{no}` | Histori chat by ticket number | ADMIN, SUPPORT, TECHNICAL_SUPPORT, USER |
 | **CHAT ATTACHMENT** | | | |
-| `POST` | `/api/v1/chat/upload` | Upload file untuk chat | ADMIN, USER |
-| `GET` | `/api/v1/chat/attachments/{id}/download` | Download file chat | ADMIN, USER |
-| **TICKET ASSIGNMENT** | | | |
-| `POST` | `/api/v1/tickets/{id}/assign` | Assign support ke ticket | ADMIN |
-| `POST` | `/api/v1/tickets/{id}/unassign` | Unassign support dari ticket | ADMIN |
-| `POST` | `/api/v1/tickets/{id}/reassign` | Reassign ticket ke support baru | ADMIN |
-| `GET` | `/api/v1/tickets/{id}/assignments` | Lihat assignment ticket | ADMIN, SUPPORT |
-| `GET` | `/api/v1/tickets/my-assignments` | Lihat ticket yang di-assign ke saya | ADMIN, SUPPORT |
+| `POST` | `/api/v1/chat/upload` | Upload file untuk chat | ADMIN, SUPPORT, TECHNICAL_SUPPORT, USER |
+| `GET` | `/api/v1/chat/attachments/{id}/download` | Download file chat | ADMIN, SUPPORT, TECHNICAL_SUPPORT, USER |
 
 ---
 
@@ -227,7 +261,9 @@ Token berlaku **2 jam** (dapat dikonfigurasi via `jwt.expiration`).
 | `name` | `string` | ✅ | Nama lengkap |
 | `email` | `string` | ✅ | Email (harus unik) |
 | `password` | `string` | ✅ | Password |
-| `role` | `string` | ❌ | `ADMIN` atau `USER` (default: `USER`) |
+| `phone` | `string` | ❌ | Nomor telepon (optional) |
+| `role` | `string` | ❌ | `ADMIN`, `SUPPORT`, `TECHNICAL_SUPPORT`, atau `USER` (default: `USER`) |
+| `clientId` | `number` | ⚠ | Wajib untuk role `USER`, optional untuk role lain |
 
 **Response — `201 Created`:**
 ```json
@@ -386,6 +422,107 @@ curl -X PUT http://localhost:8080/api/v1/clients/1 \
 #### `DELETE /api/v1/clients/{id}` — Hapus Client
 ```bash
 curl -X DELETE -H "Authorization: Bearer <TOKEN>" http://localhost:8080/api/v1/clients/1
+```
+
+---
+
+### 👥 Client Support API (ADMIN only)
+
+> ✅ Endpoint untuk mengelola hubungan **Client ↔ SUPPORT**.
+> Setiap client bisa punya beberapa SUPPORT (Tier 1) yang otomatis di-assign saat user dari client tersebut membuat ticket baru.
+
+#### `POST /api/v1/clients/{clientId}/supports` — Tambah SUPPORT ke Client
+
+**Request Body:**
+```json
+{
+  "supportUserIds": [3, 5]
+}
+```
+
+| Field | Tipe | Wajib | Keterangan |
+|-------|------|-------|------------|
+| `supportUserIds` | `array[number]` | ✅ | List ID user dengan role `SUPPORT` |
+
+```bash
+curl -X POST http://localhost:8080/api/v1/clients/1/supports \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <ADMIN_TOKEN>" \
+  -d '{"supportUserIds": [3, 5]}'
+```
+
+#### `GET /api/v1/clients/{clientId}/supports` — Lihat SUPPORT untuk Client
+```bash
+curl -H "Authorization: Bearer <ADMIN_TOKEN>" \
+  http://localhost:8080/api/v1/clients/1/supports
+```
+
+#### `DELETE /api/v1/clients/{clientId}/supports` — Hapus SUPPORT dari Client
+```bash
+curl -X DELETE http://localhost:8080/api/v1/clients/1/supports \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <ADMIN_TOKEN>" \
+  -d '{"supportUserIds": [3]}'
+```
+
+---
+
+### 📁 Project API
+
+> ✅ ADMIN dapat full CRUD. USER hanya bisa GET project milik client-nya.
+> Project terkait dengan Client (1 client → many projects).
+
+#### `POST /api/v1/projects` — Buat Project Baru (ADMIN)
+
+**Request Body:**
+```json
+{
+  "projectName": "Project Alpha",
+  "description": "Implementasi sistem baru",
+  "clientId": 1
+}
+```
+
+| Field | Tipe | Wajib | Keterangan |
+|-------|------|-------|------------|
+| `projectName` | `string` | ✅ | Nama project |
+| `description` | `string` | ❌ | Deskripsi project |
+| `clientId` | `number` | ✅ | ID client pemilik project |
+
+```bash
+curl -X POST http://localhost:8080/api/v1/projects \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <ADMIN_TOKEN>" \
+  -d '{"projectName":"Project Alpha","description":"Implementasi sistem baru","clientId":1}'
+```
+
+#### `GET /api/v1/projects` — Ambil Semua Project
+```bash
+curl -H "Authorization: Bearer <TOKEN>" http://localhost:8080/api/v1/projects
+```
+
+#### `GET /api/v1/projects/{id}` — Ambil Project by ID
+```bash
+curl -H "Authorization: Bearer <TOKEN>" http://localhost:8080/api/v1/projects/1
+```
+
+#### `GET /api/v1/projects/client/{clientId}` — Project per Client
+```bash
+curl -H "Authorization: Bearer <TOKEN>" http://localhost:8080/api/v1/projects/client/1
+```
+
+#### `PUT /api/v1/projects/{id}` — Update Project (ADMIN)
+```bash
+curl -X PUT http://localhost:8080/api/v1/projects/1 \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <ADMIN_TOKEN>" \
+  -d '{"projectName":"Project Alpha v2","description":"Updated","clientId":1}'
+```
+
+#### `DELETE /api/v1/projects/{id}` — Hapus Project (ADMIN)
+```bash
+curl -X DELETE -H "Authorization: Bearer <ADMIN_TOKEN>" \
+  http://localhost:8080/api/v1/projects/1
 ```
 
 ---
@@ -588,10 +725,13 @@ curl -H "Authorization: Bearer <TOKEN>" http://localhost:8080/api/v1/tickets/1/p
 
 ---
 
-### 🎯 Ticket Assignment API (ADMIN only for assign/unassign)
+### 🎯 Ticket Assignment API
 
-> ✅ Fitur assignment memungkinkan ADMIN untuk menugaskan satu atau lebih **SUPPORT** engineer ke sebuah ticket.
-> SUPPORT engineer hanya bisa melihat ticket yang di-assign ke mereka.
+> ✅ Mendukung **alur eskalasi Tier 1 → Tier 2**:
+> - **ADMIN** dapat assign ticket ke `SUPPORT` atau `TECHNICAL_SUPPORT`.
+> - **SUPPORT** (Tier 1) dapat **eskalasi** ticket ke `TECHNICAL_SUPPORT` (Tier 2).
+> - **TECHNICAL_SUPPORT** dan **SUPPORT** dapat melihat ticket yang di-assign ke mereka via `my-assignments`.
+> - SUPPORT **tidak** bisa assign ke sesama SUPPORT — hanya eskalasi ke TECHNICAL_SUPPORT.
 
 #### `POST /api/v1/tickets/{id}/assign` — Assign Support ke Ticket
 
@@ -607,8 +747,10 @@ Assign satu atau lebih support engineer ke ticket. Bisa assign multiple orang se
 
 | Field | Tipe | Wajib | Keterangan |
 |-------|------|-------|------------|
-| `supportUserIds` | `array[number]` | ✅ | List ID user dengan role SUPPORT |
+| `supportUserIds` | `array[number]` | ✅ | List ID user dengan role `SUPPORT` atau `TECHNICAL_SUPPORT` |
 | `notes` | `string` | ❌ | Catatan assignment (maks 1000 karakter) |
+
+> **Aturan target:** ADMIN bebas assign ke SUPPORT/TECHNICAL_SUPPORT. SUPPORT hanya boleh assign ke TECHNICAL_SUPPORT (eskalasi).
 
 **Response — `201 Created`:**
 ```json
@@ -891,11 +1033,12 @@ curl -H "Authorization: Bearer <TOKEN>" \
 ## 📖 Enum Reference
 
 ### Role
-| Nilai | Keterangan |
-|-------|------------|
-| `ADMIN` | Full access ke semua fitur, dapat assign ticket |
-| `SUPPORT` | Technical support, dapat di-assign ke ticket dan mengerjakannya |
-| `USER` | Hanya bisa create & view ticket |
+| Nilai | Tier | Keterangan |
+|-------|------|------------|
+| `ADMIN` | — | Full access ke semua fitur, dapat assign ticket ke siapa saja |
+| `SUPPORT` | Tier 1 | Customer-facing support, auto-assigned ke ticket dari client-nya, bisa eskalasi ke TECHNICAL_SUPPORT |
+| `TECHNICAL_SUPPORT` | Tier 2/3 | Technical engineer, hanya menerima ticket eskalasi dan mengerjakan ticket yang di-assign |
+| `USER` | — | Hanya bisa create & view ticket milik client-nya |
 
 ### Priority
 | Nilai | Keterangan |
@@ -985,7 +1128,7 @@ ticketing-backend/
     ├── entity/
     │   ├── ChatAttachment.java            # Chat file attachment entity
     │   ├── ChatMessage.java               # Chat message entity (+ attachments relation)
-    │   ├── Role.java                      # ADMIN, USER
+    │   ├── Role.java                      # ADMIN, SUPPORT, TECHNICAL_SUPPORT, USER
     │   ├── User.java                      # Implements UserDetails
     │   └── ... (other entities)
     ├── exception/
