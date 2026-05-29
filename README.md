@@ -459,6 +459,10 @@ curl -X DELETE -H "Authorization: Bearer <TOKEN>" http://localhost:8080/api/v1/c
 #### `PATCH /api/v1/clients/{id}/status` — Aktifkan / Nonaktifkan Client
 
 > ✅ Soft toggle — data client tetap ada, hanya flag `isActive` yang berubah. Cocok dipakai untuk tombol switch di UI.
+>
+> **Cascade behavior:**
+> - Saat client di-**nonaktifkan** (`true → false`), semua project milik client tersebut otomatis ikut di-nonaktifkan.
+> - Saat client di-**aktifkan kembali** (`false → true`), project **tidak** otomatis aktif. Admin harus restore project secara eksplisit (mencegah work dorman muncul tak sengaja).
 
 **Request Body:**
 ```json

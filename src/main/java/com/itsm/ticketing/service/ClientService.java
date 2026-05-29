@@ -3,8 +3,10 @@ package com.itsm.ticketing.service;
 import com.itsm.ticketing.dto.CreateClientRequest;
 import com.itsm.ticketing.dto.ClientResponse;
 import com.itsm.ticketing.entity.Client;
+import com.itsm.ticketing.entity.Project;
 import com.itsm.ticketing.exception.ResourceNotFoundException;
 import com.itsm.ticketing.repository.ClientRepository;
+import com.itsm.ticketing.repository.ProjectRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -22,6 +24,7 @@ import java.util.stream.Collectors;
 public class ClientService {
 
     private final ClientRepository clientRepository;
+    private final ProjectRepository projectRepository;
 
     /**
      * Create a new client.
@@ -122,6 +125,10 @@ public class ClientService {
 
     /**
      * Activate or deactivate a client.
+     * <p>When deactivating (true → false), all projects belonging to this client are
+     * also deactivated to keep state consistent. Reactivating a client does NOT
+     * automatically reactivate its projects — the admin must restore each project
+     * explicitly so dormant work isn't surfaced unintentionally.</p>
      *
      * @param id       the client ID
      * @param isActive new active state
@@ -135,8 +142,24 @@ public class ClientService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Client not found with ID: " + id));
 
+        boolean wasActive = Boolean.TRUE.equals(client.getIsActive());
         client.setIsActive(isActive);
         Client updated = clientRepository.save(client);
+
+        // Cascade deactivation: when a client is being deactivated, also
+        // deactivate every still-active project of that client.
+        if (wasActive && !isActive) {
+            List<Project> activeProjects = projectRepository.findByClientIdAndIsActiveTrue(id);
+            for (Project p : activeProjects) {
+                p.setIsActive(false);
+            }
+            if (!activeProjects.isEmpty()) {
+                projectRepository.saveAll(activeProjects);
+                log.info("Cascaded deactivation to {} project(s) of client {}",
+                        activeProjects.size(), updated.getCompanyName());
+            }
+        }
+
         log.info("Client {} ({}) is now {}",
                 updated.getId(), updated.getCompanyName(),
                 isActive ? "ACTIVE" : "INACTIVE");
