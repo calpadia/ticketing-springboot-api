@@ -121,6 +121,30 @@ public class ClientService {
     }
 
     /**
+     * Activate or deactivate a client.
+     *
+     * @param id       the client ID
+     * @param isActive new active state
+     * @return the updated client response
+     */
+    @Transactional
+    public ClientResponse updateClientStatus(Long id, boolean isActive) {
+        log.info("Updating client {} active status to {}", id, isActive);
+
+        Client client = clientRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Client not found with ID: " + id));
+
+        client.setIsActive(isActive);
+        Client updated = clientRepository.save(client);
+        log.info("Client {} ({}) is now {}",
+                updated.getId(), updated.getCompanyName(),
+                isActive ? "ACTIVE" : "INACTIVE");
+
+        return mapToResponse(updated);
+    }
+
+    /**
      * Maps a Client entity to a ClientResponse DTO.
      */
     private ClientResponse mapToResponse(Client client) {

@@ -4,6 +4,7 @@ import com.itsm.ticketing.dto.ClientSupportResponse;
 import com.itsm.ticketing.dto.CreateClientRequest;
 import com.itsm.ticketing.dto.ClientResponse;
 import com.itsm.ticketing.dto.ManageClientSupportsRequest;
+import com.itsm.ticketing.dto.UpdateClientStatusRequest;
 import com.itsm.ticketing.service.ClientService;
 import com.itsm.ticketing.service.ClientSupportService;
 import jakarta.validation.Valid;
@@ -94,6 +95,22 @@ public class ClientController {
         log.info("DELETE /api/v1/clients/{} - Deleting client", id);
         clientService.deleteClient(id);
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Activate or deactivate a client.
+     *
+     * @param id      the client ID
+     * @param request the new active status
+     * @return the updated client
+     */
+    @PatchMapping("/{id}/status")
+    public ResponseEntity<ClientResponse> updateClientStatus(
+            @PathVariable Long id,
+            @Valid @RequestBody UpdateClientStatusRequest request) {
+        log.info("PATCH /api/v1/clients/{}/status - Setting isActive={}", id, request.getIsActive());
+        ClientResponse response = clientService.updateClientStatus(id, request.getIsActive());
+        return ResponseEntity.ok(response);
     }
 
     // ========================================================================

@@ -198,6 +198,7 @@ TECHNICAL_SUPPORT mengerjakan ticket
 | `GET` | `/api/v1/clients` | Ambil semua client | ADMIN |
 | `GET` | `/api/v1/clients/{id}` | Ambil client by ID | ADMIN |
 | `PUT` | `/api/v1/clients/{id}` | Update client | ADMIN |
+| `PATCH` | `/api/v1/clients/{id}/status` | Activate/deactivate client | ADMIN |
 | `DELETE` | `/api/v1/clients/{id}` | Hapus client | ADMIN |
 | **CLIENT SUPPORT** | | | |
 | `POST` | `/api/v1/clients/{id}/supports` | Tambah SUPPORT ke client | ADMIN |
@@ -453,6 +454,26 @@ curl -X PUT http://localhost:8080/api/v1/clients/1 \
 #### `DELETE /api/v1/clients/{id}` — Hapus Client
 ```bash
 curl -X DELETE -H "Authorization: Bearer <TOKEN>" http://localhost:8080/api/v1/clients/1
+```
+
+#### `PATCH /api/v1/clients/{id}/status` — Aktifkan / Nonaktifkan Client
+
+> ✅ Soft toggle — data client tetap ada, hanya flag `isActive` yang berubah. Cocok dipakai untuk tombol switch di UI.
+
+**Request Body:**
+```json
+{ "isActive": false }
+```
+
+| Field | Tipe | Wajib | Keterangan |
+|-------|------|-------|------------|
+| `isActive` | `boolean` | ✅ | `true` untuk aktif, `false` untuk nonaktif |
+
+```bash
+curl -X PATCH http://localhost:8080/api/v1/clients/1/status \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <ADMIN_TOKEN>" \
+  -d '{"isActive": false}'
 ```
 
 ---
