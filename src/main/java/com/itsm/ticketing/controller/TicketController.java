@@ -7,10 +7,14 @@ import com.itsm.ticketing.dto.UpdateTicketStatusRequest;
 import com.itsm.ticketing.entity.MaintenanceType;
 import com.itsm.ticketing.entity.Priority;
 import com.itsm.ticketing.entity.User;
+import com.itsm.ticketing.service.TicketExportService;
 import com.itsm.ticketing.service.TicketService;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -18,6 +22,8 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
+import java.time.LocalDate;
 import java.util.List;
 
 /**
@@ -31,6 +37,7 @@ import java.util.List;
 public class TicketController {
 
     private final TicketService ticketService;
+    private final TicketExportService ticketExportService;
 
     /**
      * Create a new ticket with optional file attachments.
@@ -132,5 +139,38 @@ public class TicketController {
         log.info("GET /api/v1/tickets/number/{} - Fetching ticket by number", ticketNumber);
         TicketResponse response = ticketService.getTicketByNumber(ticketNumber, currentUser);
         return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Export filtered tickets as CSV.
+     * <p>Filters (all optional):</p>
+     * <ul>
+     *     <li>{@code clientId} — restrict to one client</li>
+     *     <li>{@code from} — yyyy-MM-dd, inclusive lower bound on createdAt</li>
+     *     <li>{@code to} — yyyy-MM-dd, inclusive upper bound on createdAt</li>
+     * </ul>
+     * <p>Access control is applied automatically based on caller's role
+     * (see {@link TicketExportService}).</p>
+     */
+    @GetMapping("/export/csv")
+    public void exportTicketsCsv(
+            @RequestParam(required = false) Long clientId,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @AuthenticationPrincipal User currentUser,
+            HttpServletResponse response) throws IOException {
+        log.info("GET /api/v1/tickets/export/csv - User: {} (clientId={}, from={}, to={})",
+                currentUser.getEmail(), clientId, from, to);
+
+        String filename = ticketExportService.buildFilename(from, to);
+        response.setStatus(HttpStatus.OK.value());
+        response.setContentType("text/csv; charset=UTF-8");
+        response.setHeader(HttpHeaders.CONTENT_DISPOSITION,
+                "attachment; filename=\"" + filename + "\"");
+
+        ticketExportService.exportTicketsAsCsv(
+                currentUser, clientId, from, to, response.getOutputStream());
     }
 }

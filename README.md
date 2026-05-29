@@ -232,6 +232,7 @@ TECHNICAL_SUPPORT mengerjakan ticket
 | `GET` | `/api/v1/tickets/number/{no}` | Ambil ticket by nomor | ADMIN, SUPPORT, TECHNICAL_SUPPORT, USER |
 | `PUT` | `/api/v1/tickets/{id}/status` | Update status ticket | ADMIN, SUPPORT, TECHNICAL_SUPPORT, USER |
 | `GET` | `/api/v1/tickets/{id}/progress` | Riwayat progress ticket | ADMIN, SUPPORT, TECHNICAL_SUPPORT, USER |
+| `GET` | `/api/v1/tickets/export/csv` | Export ticket ke CSV (filter: clientId, from, to) | ADMIN, SUPPORT, TECHNICAL_SUPPORT, USER |
 | **TICKET ASSIGNMENT** | | | |
 | `POST` | `/api/v1/tickets/{id}/assign` | Assign / eskalasi ticket | ADMIN, SUPPORT |
 | `POST` | `/api/v1/tickets/{id}/unassign` | Unassign ticket | ADMIN, SUPPORT |
@@ -836,6 +837,46 @@ curl -H "Authorization: Bearer <TOKEN>" http://localhost:8080/api/v1/tickets/1/p
     "changedAt": "2026-05-25T16:00:00"
   }
 ]
+```
+
+#### `GET /api/v1/tickets/export/csv` — Export Tickets ke CSV
+
+> ✅ Endpoint untuk download laporan ticket dalam format CSV. Bisa diakses semua role yang authenticated; **akses data difilter otomatis** sesuai role.
+
+**Query parameters (semua optional):**
+
+| Param | Tipe | Format | Keterangan |
+|-------|------|--------|------------|
+| `clientId` | `number` | — | Filter ticket untuk satu client |
+| `from` | `string` | `yyyy-MM-dd` | Tanggal mulai (inklusif) |
+| `to` | `string` | `yyyy-MM-dd` | Tanggal akhir (inklusif sampai 23:59:59) |
+
+**Access control (server-side enforcement):**
+
+| Role | Behaviour |
+|------|-----------|
+| `ADMIN` | Bisa export semua data; semua filter dihormati |
+| `USER` | Otomatis dipaksa ke client miliknya (parameter `clientId` diabaikan) |
+| `SUPPORT` / `TECHNICAL_SUPPORT` | Hanya ticket yang di-assign ke mereka; `clientId` dan tanggal tetap berlaku di atas itu |
+
+**Response:** `200 OK`
+- `Content-Type: text/csv; charset=UTF-8`
+- `Content-Disposition: attachment; filename="tickets-2026-01-01_to_2026-12-31.csv"`
+
+**CSV columns:** `Ticket Number, Title, Description, Status, Priority, Maintenance Type, Client, Project, Requester, Created At`
+
+**Catatan format:**
+- File mengandung **UTF-8 BOM** supaya Excel auto-detect encoding (karakter non-ASCII tidak rusak)
+- Field di-escape per RFC 4180 (koma/quote/newline di dalam description aman)
+
+**Error:**
+- `400 Bad Request` — `from` lebih besar dari `to`
+
+```bash
+# Export semua ticket bulan Mei 2026 untuk client 1
+curl -H "Authorization: Bearer <TOKEN>" \
+  "http://localhost:8080/api/v1/tickets/export/csv?clientId=1&from=2026-05-01&to=2026-05-31" \
+  -o tickets.csv
 ```
 
 ---
