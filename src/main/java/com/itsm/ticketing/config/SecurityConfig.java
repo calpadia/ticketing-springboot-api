@@ -96,6 +96,9 @@ public class SecurityConfig {
                         // User's own quota endpoint - accessible by ADMIN and USER
                         .requestMatchers(HttpMethod.GET, "/api/v1/my-quotas/**").hasAnyRole("ADMIN", "USER")
 
+                        // SLA report - ADMIN sees all, USER scoped to own client (server-enforced)
+                        .requestMatchers(HttpMethod.GET, "/api/v1/sla-report/**").hasAnyRole("ADMIN", "USER")
+
                         // Ticket endpoints - accessible by ADMIN, SUPPORT, TECHNICAL_SUPPORT, and USER
                         .requestMatchers(HttpMethod.POST, "/api/v1/tickets").hasAnyRole("ADMIN", "USER")
                         .requestMatchers(HttpMethod.GET, "/api/v1/tickets/my-assignments").hasAnyRole("ADMIN", "SUPPORT", "TECHNICAL_SUPPORT")

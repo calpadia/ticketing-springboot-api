@@ -23,6 +23,7 @@ Sistem ticketing untuk manajemen IT Service Management (ITSM) berbasis B2B. Back
   - [Service Catalog API](#-service-catalog-api-admin-only)
   - [Ticket API](#-ticket-api)
   - [Ticket Assignment API](#-ticket-assignment-api)
+  - [SLA Report API](#-sla-report-api-admin--user)
   - [Chat API (WebSocket + REST)](#-chat-api-websocket--rest)
   - [Chat Attachment API](#-chat-attachment-api)
 - [Enum Reference](#-enum-reference)
@@ -159,6 +160,7 @@ TECHNICAL_SUPPORT mengerjakan ticket
 | `GET/POST/PUT/DELETE /api/v1/client-quotas/**` | ✅ | ❌ | ❌ | ❌ | ❌ |
 | `GET /api/v1/my-quotas/**` | ✅ | ❌ | ❌ | ✅ | ❌ |
 | `GET/POST/PUT/DELETE /api/v1/service-catalogs/**` | ✅ | ❌ | ❌ | ❌ | ❌ |
+| `GET /api/v1/sla-report/**` | ✅ | ❌ | ❌ | ✅ (own client) | ❌ |
 | `POST /api/v1/tickets` | ✅ | ❌ | ❌ | ✅ | ❌ |
 | `GET /api/v1/tickets/**` | ✅ | ✅ (assigned) | ✅ (assigned) | ✅ (own client) | ❌ |
 | `PUT /api/v1/tickets/{id}/status` | ✅ | ✅ | ✅ | ✅ | ❌ |
@@ -233,6 +235,9 @@ TECHNICAL_SUPPORT mengerjakan ticket
 | `PUT` | `/api/v1/tickets/{id}/status` | Update status ticket | ADMIN, SUPPORT, TECHNICAL_SUPPORT, USER |
 | `GET` | `/api/v1/tickets/{id}/progress` | Riwayat progress ticket | ADMIN, SUPPORT, TECHNICAL_SUPPORT, USER |
 | `GET` | `/api/v1/tickets/export/csv` | Export ticket ke CSV (filter: clientId, from, to) | ADMIN, SUPPORT, TECHNICAL_SUPPORT, USER |
+| **SLA REPORT** | | | |
+| `GET` | `/api/v1/sla-report` | Laporan SLA per client (targets + metrics) | ADMIN, USER (scoped) |
+| `GET` | `/api/v1/sla-report/targets` | Tabel SLA target saja | ADMIN, USER |
 | **TICKET ASSIGNMENT** | | | |
 | `POST` | `/api/v1/tickets/{id}/assign` | Assign / eskalasi ticket | ADMIN, SUPPORT |
 | `POST` | `/api/v1/tickets/{id}/unassign` | Unassign ticket | ADMIN, SUPPORT |
@@ -877,6 +882,105 @@ curl -H "Authorization: Bearer <TOKEN>" http://localhost:8080/api/v1/tickets/1/p
 curl -H "Authorization: Bearer <TOKEN>" \
   "http://localhost:8080/api/v1/tickets/export/csv?clientId=1&from=2026-05-01&to=2026-05-31" \
   -o tickets.csv
+```
+
+---
+
+### 📈 SLA Report API (ADMIN & USER)
+
+> ✅ Laporan performa SLA per client. SLA targets di-hardcode di backend (per priority L1–L4) dan ikut dikembalikan oleh API supaya frontend tidak perlu duplikasi.
+> Tracking dilakukan otomatis:
+> - `firstResponseAt` ← saat support team (ADMIN/SUPPORT/TECHNICAL_SUPPORT) kirim chat pertama
+> - `resolvedAt` ← saat status ticket diubah ke `RESOLVED` pertama kali (tidak overwrite saat reopen)
+
+**SLA Targets default (jam wall-clock):**
+
+| Priority | Response | Resolution |
+|----------|----------|------------|
+| L1 (Critical) | 1h | 4h |
+| L2 (High) | 2h | 8h |
+| L3 (Medium) | 4h | 24h |
+| L4 (Low) | 8h | 72h |
+
+**State logic per metric:**
+- **met** — event terjadi dalam target
+- **missed** — event terjadi melewati target, ATAU event belum terjadi dan elapsed time sudah melewati target (in-flight breach)
+- **pending** — event belum terjadi tapi masih dalam window target
+
+**Compliance % = met / (met + missed) × 100** (pending tidak dihitung — belum bisa diadjudikasi).
+
+#### `GET /api/v1/sla-report` — SLA Report Lengkap
+
+**Query parameters (semua optional):**
+
+| Param | Tipe | Format | Keterangan |
+|-------|------|--------|------------|
+| `clientId` | `number` | — | Filter satu client (USER otomatis di-override ke client miliknya) |
+| `from` | `string` | `yyyy-MM-dd` | Tanggal mulai (inklusif, by `createdAt`) |
+| `to` | `string` | `yyyy-MM-dd` | Tanggal akhir (inklusif sampai 23:59:59) |
+
+**Response — `200 OK`:**
+```json
+{
+  "targets": [
+    { "priority": "L1", "responseHours": 1, "resolutionHours": 4 },
+    { "priority": "L2", "responseHours": 2, "resolutionHours": 8 },
+    { "priority": "L3", "responseHours": 4, "resolutionHours": 24 },
+    { "priority": "L4", "responseHours": 8, "resolutionHours": 72 }
+  ],
+  "clients": [
+    {
+      "clientId": 1,
+      "clientName": "PT BANK NEGARA INDONESIA",
+      "totalTickets": 12,
+      "response": {
+        "met": 8, "missed": 2, "pending": 2,
+        "compliancePercent": 80.0,
+        "averageHours": 1.75
+      },
+      "resolution": {
+        "met": 6, "missed": 3, "pending": 3,
+        "compliancePercent": 66.67,
+        "averageHours": 12.4
+      },
+      "priorityBreakdown": [
+        {
+          "priority": "L1",
+          "totalTickets": 3,
+          "response": { "met": 3, "missed": 0, "pending": 0, "compliancePercent": 100.0, "averageHours": 0.5 },
+          "resolution": { "met": 2, "missed": 1, "pending": 0, "compliancePercent": 66.67, "averageHours": 4.2 }
+        }
+      ]
+    }
+  ],
+  "from": "2026-01-01",
+  "to": "2026-12-31",
+  "generatedAt": "2026-05-29"
+}
+```
+
+```bash
+curl -H "Authorization: Bearer <TOKEN>" \
+  "http://localhost:8080/api/v1/sla-report?from=2026-01-01&to=2026-12-31"
+```
+
+#### `GET /api/v1/sla-report/targets` — Tabel SLA Target Saja
+
+Endpoint ringan untuk fetch SLA targets tanpa hitung metrik.
+
+```bash
+curl -H "Authorization: Bearer <TOKEN>" \
+  http://localhost:8080/api/v1/sla-report/targets
+```
+
+**Response — `200 OK`:**
+```json
+[
+  { "priority": "L1", "responseHours": 1, "resolutionHours": 4 },
+  { "priority": "L2", "responseHours": 2, "resolutionHours": 8 },
+  { "priority": "L3", "responseHours": 4, "resolutionHours": 24 },
+  { "priority": "L4", "responseHours": 8, "resolutionHours": 72 }
+]
 ```
 
 ---

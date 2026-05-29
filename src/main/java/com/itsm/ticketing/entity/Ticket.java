@@ -68,4 +68,20 @@ public class Ticket {
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
+
+    /**
+     * Timestamp of the first reply from the support team (ADMIN/SUPPORT/TECHNICAL_SUPPORT).
+     * Set automatically when the first non-customer chat message is sent.
+     * Used to compute the SLA response time.
+     */
+    @Column(name = "first_response_at")
+    private LocalDateTime firstResponseAt;
+
+    /**
+     * Timestamp when the ticket reached the {@code RESOLVED} status for the first time.
+     * Set automatically by status update logic. Not cleared on reopen — represents
+     * the original resolution timestamp for SLA reporting.
+     */
+    @Column(name = "resolved_at")
+    private LocalDateTime resolvedAt;
 }

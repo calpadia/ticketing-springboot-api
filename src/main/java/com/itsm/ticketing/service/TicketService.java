@@ -415,6 +415,14 @@ public class TicketService {
 
         // Update ticket status
         ticket.setStatus(newStatus);
+
+        // SLA tracking: stamp resolvedAt the first time we hit RESOLVED.
+        // Don't overwrite on reopen+re-resolve — keep the original resolution time.
+        if (newStatus == TicketStatus.RESOLVED && ticket.getResolvedAt() == null) {
+            ticket.setResolvedAt(java.time.LocalDateTime.now());
+            log.info("SLA: resolvedAt set for ticket {}", ticket.getTicketNumber());
+        }
+
         Ticket updatedTicket = ticketRepository.save(ticket);
 
         // Record progress log

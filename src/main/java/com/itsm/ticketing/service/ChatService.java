@@ -227,6 +227,17 @@ public class ChatService {
 
         ChatMessage saved = chatMessageRepository.save(chatMessage);
 
+        // SLA tracking: stamp firstResponseAt the first time the support team replies.
+        if (ticket.getFirstResponseAt() == null
+                && (sender.getRole() == Role.ADMIN
+                || sender.getRole() == Role.SUPPORT
+                || sender.getRole() == Role.TECHNICAL_SUPPORT)) {
+            ticket.setFirstResponseAt(saved.getSentAt());
+            ticketRepository.save(ticket);
+            log.info("SLA: firstResponseAt set for ticket {} at {}",
+                    ticket.getTicketNumber(), saved.getSentAt());
+        }
+
         // Link attachments to this message if provided
         List<ChatAttachmentInfo> attachmentInfos = new ArrayList<>();
         if (hasAttachments) {
