@@ -3,8 +3,11 @@ package com.itsm.ticketing.service;
 import com.itsm.ticketing.dto.*;
 import com.itsm.ticketing.entity.*;
 import com.itsm.ticketing.repository.TicketRepository;
+import com.itsm.ticketing.repository.TicketSpecifications;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -112,13 +115,14 @@ public class SlaReportService {
         LocalDateTime fromDt = from != null ? from.atStartOfDay() : null;
         LocalDateTime toDt = to != null ? to.atTime(LocalTime.MAX) : null;
 
-        List<Ticket> tickets = ticketRepository.searchTicketsForExport(
-                effectiveClientId,
-                false,
-                Collections.emptyList(),
-                fromDt,
-                toDt
+        Specification<Ticket> spec = TicketSpecifications.allOf(
+                TicketSpecifications.withClientId(effectiveClientId),
+                TicketSpecifications.createdAtFrom(fromDt),
+                TicketSpecifications.createdAtTo(toDt)
         );
+        List<Ticket> tickets = (spec == null)
+                ? ticketRepository.findAll(Sort.by(Sort.Direction.DESC, "createdAt"))
+                : ticketRepository.findAll(spec, Sort.by(Sort.Direction.DESC, "createdAt"));
         log.info("SLA report: caller={}, clientFilter={}, from={}, to={}, tickets={}",
                 caller.getEmail(), effectiveClientId, from, to, tickets.size());
 

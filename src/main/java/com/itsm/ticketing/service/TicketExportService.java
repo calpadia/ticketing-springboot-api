@@ -5,8 +5,11 @@ import com.itsm.ticketing.entity.Ticket;
 import com.itsm.ticketing.entity.User;
 import com.itsm.ticketing.repository.TicketAssignmentRepository;
 import com.itsm.ticketing.repository.TicketRepository;
+import com.itsm.ticketing.repository.TicketSpecifications;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,7 +23,6 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
-import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -118,14 +120,16 @@ public class TicketExportService {
         LocalDateTime fromDt = from != null ? from.atStartOfDay() : null;
         LocalDateTime toDt = to != null ? to.atTime(LocalTime.MAX) : null;
 
-        // 4. Query
-        List<Ticket> tickets = ticketRepository.searchTicketsForExport(
-                effectiveClientId,
-                ticketIdScope != null,
-                ticketIdScope != null ? ticketIdScope : Collections.emptyList(),
-                fromDt,
-                toDt
+        // 4. Query (Specifications skip null filters at SQL level)
+        Specification<Ticket> spec = TicketSpecifications.allOf(
+                TicketSpecifications.withClientId(effectiveClientId),
+                TicketSpecifications.withIdIn(ticketIdScope),
+                TicketSpecifications.createdAtFrom(fromDt),
+                TicketSpecifications.createdAtTo(toDt)
         );
+        List<Ticket> tickets = (spec == null)
+                ? ticketRepository.findAll(Sort.by(Sort.Direction.DESC, "createdAt"))
+                : ticketRepository.findAll(spec, Sort.by(Sort.Direction.DESC, "createdAt"));
         log.info("Exporting {} ticket(s) for {} (clientId={}, from={}, to={})",
                 tickets.size(), caller.getEmail(), effectiveClientId, from, to);
 
