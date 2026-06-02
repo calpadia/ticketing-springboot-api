@@ -252,6 +252,10 @@ TECHNICAL_SUPPORT mengerjakan ticket
 | `WS` | `/ws` | WebSocket handshake (SockJS) | Public |
 | `STOMP` | `/app/chat.send` | Kirim pesan chat real-time | ADMIN, SUPPORT, TECHNICAL_SUPPORT, USER |
 | `STOMP` | `/topic/chat/{ticketId}` | Subscribe pesan chat | ADMIN, SUPPORT, TECHNICAL_SUPPORT, USER |
+| **REALTIME TICKET** | | | |
+| `STOMP SUB` | `/topic/tickets/new` | Notif saat ticket baru dibuat | All authenticated |
+| `STOMP SUB` | `/topic/tickets/{id}/status` | Notif saat status ticket berubah | All authenticated |
+| `STOMP SUB` | `/topic/tickets/{id}/assigned` | Notif saat assignment berubah | All authenticated |
 | `GET` | `/api/v1/chat/{ticketId}` | Histori chat by ticket ID | ADMIN, SUPPORT, TECHNICAL_SUPPORT, USER |
 | `GET` | `/api/v1/chat/ticket/{no}` | Histori chat by ticket number | ADMIN, SUPPORT, TECHNICAL_SUPPORT, USER |
 | **CHAT ATTACHMENT** | | | |
@@ -1438,6 +1442,96 @@ ticketing-backend/
         ├── ChatService.java               # Chat send, history, file upload/download
         ├── UserService.java               # + UserDetailsService
         └── ... (other services)
+```
+
+---
+
+## 🔔 Real-time Ticket Updates (WebSocket)
+
+Selain chat, frontend dapat subscribe ke topic WebSocket berikut untuk mendapatkan notifikasi **tanpa polling** saat data ticket berubah.
+
+### Topic Layout
+
+| Topic | Trigger |
+|-------|---------|
+| `/topic/tickets/new` | Ticket baru dibuat |
+| `/topic/tickets/{id}/status` | Status ticket berubah |
+| `/topic/tickets/{id}/assigned` | Assignment ticket berubah (assign/unassign/reassign) |
+
+> **Broadcast dilakukan setelah DB commit** (`@TransactionalEventListener(phase = AFTER_COMMIT)`). Jadi ketika frontend menerima notifikasi dan langsung refetch, data sudah pasti ada di database.
+
+### Payload
+
+Semua topic mengirimkan `TicketResponse` (format sama dengan REST API):
+
+```json
+{
+  "id": 1,
+  "ticketNumber": "TKT-20260529-001",
+  "title": "Server down",
+  "status": "IN_PROGRESS",
+  "priority": "L1",
+  "maintenanceType": "CM",
+  "clientId": 1,
+  "clientCompanyName": "PT BANK NEGARA INDONESIA",
+  "createdAt": "2026-05-29T10:00:00"
+}
+```
+
+> Untuk `ASSIGNED` topic, payload hanya berisi field dasar (id, ticketNumber, status, client) — cukup untuk trigger re-fetch assignments dari REST.
+
+### Cara Subscribe di Frontend
+
+```javascript
+// 1. Connect (sama seperti chat, JWT di header STOMP)
+const socket = new SockJS('http://localhost:8080/ws');
+const stompClient = Stomp.over(socket);
+
+stompClient.connect({ 'Authorization': 'Bearer <TOKEN>' }, () => {
+
+    // 2a. Subscribe ticket baru → refresh list
+    stompClient.subscribe('/topic/tickets/new', (msg) => {
+        const ticket = JSON.parse(msg.body);
+        // tambahkan ticket ke list, atau trigger re-fetch
+        addTicketToList(ticket);
+    });
+
+    // 2b. Subscribe perubahan status ticket tertentu
+    stompClient.subscribe(`/topic/tickets/${ticketId}/status`, (msg) => {
+        const ticket = JSON.parse(msg.body);
+        updateTicketStatus(ticket);
+    });
+
+    // 2c. Subscribe perubahan assignment ticket tertentu
+    stompClient.subscribe(`/topic/tickets/${ticketId}/assigned`, (msg) => {
+        fetchTicketAssignments(ticketId); // refetch assignments
+    });
+});
+```
+
+### Pattern yang Direkomendasikan
+
+Karena `/topic/tickets/new` broadcast ke semua subscriber (tanpa filter role/client), filter di **frontend** sesuai role:
+
+```javascript
+stompClient.subscribe('/topic/tickets/new', (msg) => {
+    const ticket = JSON.parse(msg.body);
+
+    // ADMIN: tampilkan semua
+    if (userRole === 'ADMIN') {
+        addTicketToList(ticket);
+        return;
+    }
+
+    // USER: hanya ticket dari client-nya
+    if (userRole === 'USER' && ticket.clientId === myClientId) {
+        addTicketToList(ticket);
+        return;
+    }
+
+    // SUPPORT/TECHNICAL_SUPPORT: tunggu notif assignment,
+    // jangan langsung tampilkan saat ticket dibuat
+});
 ```
 
 ---

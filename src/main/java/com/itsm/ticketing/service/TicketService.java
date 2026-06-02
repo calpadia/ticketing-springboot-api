@@ -7,6 +7,7 @@ import com.itsm.ticketing.dto.TicketProgressLogResponse;
 import com.itsm.ticketing.dto.TicketResponse;
 import com.itsm.ticketing.dto.UpdateTicketStatusRequest;
 import com.itsm.ticketing.entity.*;
+import com.itsm.ticketing.event.TicketEvent;
 import com.itsm.ticketing.exception.QuotaExceededException;
 import com.itsm.ticketing.exception.ResourceNotFoundException;
 import com.itsm.ticketing.repository.ClientQuotaRepository;
@@ -18,6 +19,7 @@ import com.itsm.ticketing.repository.TicketRepository;
 import com.itsm.ticketing.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -46,6 +48,7 @@ public class TicketService {
     private final TicketProgressLogRepository progressLogRepository;
     private final TicketAssignmentRepository assignmentRepository;
     private final ClientSupportService clientSupportService;
+    private final ApplicationEventPublisher eventPublisher;
 
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMdd");
 
@@ -135,8 +138,12 @@ public class TicketService {
         autoAssignClientSupports(savedTicket, client);
 
         log.info("Ticket created successfully: {}", ticketNumber);
+        TicketResponse response = mapToResponse(savedTicket, attachmentResponses);
 
-        return mapToResponse(savedTicket, attachmentResponses);
+        // Broadcast to WebSocket subscribers after transaction commits
+        eventPublisher.publishEvent(new TicketEvent(this, TicketEvent.Type.CREATED, response));
+
+        return response;
     }
 
     /**
@@ -440,7 +447,13 @@ public class TicketService {
 
         List<AttachmentResponse> attachments =
                 fileStorageService.getAttachmentsByTicketId(ticketId);
-        return mapToResponse(updatedTicket, attachments);
+        TicketResponse response = mapToResponse(updatedTicket, attachments);
+
+        // Broadcast to WebSocket subscribers after transaction commits
+        eventPublisher.publishEvent(
+                new TicketEvent(this, TicketEvent.Type.STATUS_CHANGED, response));
+
+        return response;
     }
 
     /**

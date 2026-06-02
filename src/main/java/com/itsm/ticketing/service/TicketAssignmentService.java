@@ -2,14 +2,17 @@ package com.itsm.ticketing.service;
 
 import com.itsm.ticketing.dto.AssignTicketRequest;
 import com.itsm.ticketing.dto.TicketAssignmentResponse;
+import com.itsm.ticketing.dto.TicketResponse;
 import com.itsm.ticketing.dto.UnassignTicketRequest;
 import com.itsm.ticketing.entity.*;
+import com.itsm.ticketing.event.TicketEvent;
 import com.itsm.ticketing.exception.ResourceNotFoundException;
 import com.itsm.ticketing.repository.TicketAssignmentRepository;
 import com.itsm.ticketing.repository.TicketRepository;
 import com.itsm.ticketing.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,6 +34,7 @@ public class TicketAssignmentService {
     private final TicketAssignmentRepository assignmentRepository;
     private final TicketRepository ticketRepository;
     private final UserRepository userRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     /**
      * Assign one or more support engineers to a ticket.
@@ -103,7 +107,20 @@ public class TicketAssignmentService {
                     ticket.getTicketNumber(), supportUser.getName(), assignedBy.getName());
         }
 
+        publishAssignedEvent(ticket);
         return responses;
+    }
+
+    private void publishAssignedEvent(Ticket ticket) {
+        // Build a minimal TicketResponse that carries just enough info for frontend routing
+        TicketResponse payload = TicketResponse.builder()
+                .id(ticket.getId())
+                .ticketNumber(ticket.getTicketNumber())
+                .status(ticket.getStatus())
+                .clientId(ticket.getClient() != null ? ticket.getClient().getId() : null)
+                .clientCompanyName(ticket.getClient() != null ? ticket.getClient().getCompanyName() : null)
+                .build();
+        eventPublisher.publishEvent(new TicketEvent(this, TicketEvent.Type.ASSIGNED, payload));
     }
 
     /**
@@ -140,6 +157,7 @@ public class TicketAssignmentService {
                     ticket.getTicketNumber(), supportUserId, currentUser.getName(),
                     request.getReason());
         }
+        publishAssignedEvent(ticket);
     }
 
     /**
