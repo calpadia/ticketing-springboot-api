@@ -54,13 +54,7 @@ public class TicketWorklogService {
         Ticket ticket = ticketRepository.findById(ticketId)
                 .orElseThrow(() -> new ResourceNotFoundException("Ticket not found with ID: " + ticketId));
 
-        // Business rule: only 1 active timer per user per ticket
-        if (worklogRepository.existsByTicketIdAndUserIdAndStoppedAtIsNull(ticketId, caller.getId())) {
-            throw new IllegalStateException(
-                    "User " + caller.getName() + " sudah memiliki timer aktif di ticket ini. " +
-                    "Hentikan timer yang berjalan terlebih dahulu.");
-        }
-
+        // Multiple worklogs can run simultaneously — no constraint on active timers per ticket
         TicketWorklog worklog = TicketWorklog.builder()
                 .ticket(ticket)
                 .user(caller)
@@ -143,12 +137,25 @@ public class TicketWorklogService {
                 .ticketNumber(worklog.getTicket().getTicketNumber())
                 .userId(worklog.getUser().getId())
                 .userName(worklog.getUser().getName())
-                .userRole(worklog.getUser().getRole())
+                .userRoleLabel(formatRoleLabel(worklog.getUser().getRole()))
                 .taskNotes(worklog.getTaskNotes())
                 .startedAt(worklog.getStartedAt())
                 .stoppedAt(worklog.getStoppedAt())
                 .loggedDurationSeconds(worklog.getLoggedDurationSeconds())
                 .isRunning(worklog.getStoppedAt() == null)
                 .build();
+    }
+
+    /**
+     * Converts Role enum to a human-readable display label for the frontend UI.
+     */
+    private String formatRoleLabel(com.itsm.ticketing.entity.Role role) {
+        if (role == null) return "";
+        return switch (role) {
+            case ADMIN -> "Admin";
+            case SUPPORT -> "Support";
+            case TECHNICAL_SUPPORT -> "Technical Support";
+            case USER -> "User";
+        };
     }
 }

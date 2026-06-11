@@ -1,6 +1,5 @@
 package com.itsm.ticketing.dto;
 
-import com.itsm.ticketing.entity.Role;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -25,7 +24,12 @@ public class WorklogResponse {
     // User info (flattened)
     private Long userId;
     private String userName;
-    private Role userRole;
+
+    /**
+     * Human-readable role label for display in the UI.
+     * e.g. "Admin", "Support", "Technical Support", "User"
+     */
+    private String userRoleLabel;
 
     private String taskNotes;
     private LocalDateTime startedAt;
@@ -38,3 +42,4 @@ public class WorklogResponse {
      */
     private boolean isRunning;
 }
+
