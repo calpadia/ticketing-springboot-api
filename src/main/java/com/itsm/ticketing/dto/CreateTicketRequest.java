@@ -2,6 +2,7 @@ package com.itsm.ticketing.dto;
 
 import com.itsm.ticketing.entity.MaintenanceType;
 import com.itsm.ticketing.entity.Priority;
+import com.itsm.ticketing.entity.ProductType;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -33,6 +34,8 @@ public class CreateTicketRequest {
 
     @NotNull(message = "Maintenance type is required")
     private MaintenanceType maintenanceType;
+
+    private ProductType productType;
 
     @NotNull(message = "Client ID is required")
     private Long clientId;

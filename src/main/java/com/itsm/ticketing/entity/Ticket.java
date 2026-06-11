@@ -50,6 +50,10 @@ public class Ticket {
     @NotNull(message = "Maintenance type is required")
     private MaintenanceType maintenanceType;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "product_type")
+    private ProductType productType;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "client_id", nullable = false)
     private Client client;

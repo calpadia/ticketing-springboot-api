@@ -2,6 +2,7 @@ package com.itsm.ticketing.dto;
 
 import com.itsm.ticketing.entity.MaintenanceType;
 import com.itsm.ticketing.entity.Priority;
+import com.itsm.ticketing.entity.ProductType;
 import com.itsm.ticketing.entity.TicketStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -28,6 +29,7 @@ public class TicketResponse {
     private TicketStatus status;
     private Priority priority;
     private MaintenanceType maintenanceType;
+    private ProductType productType;
 
     // Client info (flattened)
     private Long clientId;

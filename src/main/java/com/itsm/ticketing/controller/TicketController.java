@@ -6,6 +6,7 @@ import com.itsm.ticketing.dto.TicketResponse;
 import com.itsm.ticketing.dto.UpdateTicketStatusRequest;
 import com.itsm.ticketing.entity.MaintenanceType;
 import com.itsm.ticketing.entity.Priority;
+import com.itsm.ticketing.entity.ProductType;
 import com.itsm.ticketing.entity.User;
 import com.itsm.ticketing.service.TicketExportService;
 import com.itsm.ticketing.service.TicketService;
@@ -49,6 +50,8 @@ public class TicketController {
             @RequestParam("description") String description,
             @RequestParam("priority") Priority priority,
             @RequestParam("maintenanceType") MaintenanceType maintenanceType,
+            @RequestParam(value = "productType", required = false) ProductType productType,
+            @RequestParam(value = "projectId", required = false) Long projectId,
             @RequestParam("clientId") Long clientId,
             @RequestParam("requesterId") Long requesterId,
             @RequestParam(value = "files", required = false) List<MultipartFile> files) {
@@ -61,6 +64,8 @@ public class TicketController {
                 .description(description)
                 .priority(priority)
                 .maintenanceType(maintenanceType)
+                .productType(productType)
+                .projectId(projectId)
                 .clientId(clientId)
                 .requesterId(requesterId)
                 .build();

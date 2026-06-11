@@ -48,7 +48,7 @@ import java.util.stream.Collectors;
 public class TicketExportService {
 
     private static final String CSV_HEADER =
-            "Ticket Number,Title,Description,Status,Priority,Maintenance Type," +
+            "Ticket Number,Title,Description,Status,Priority,Maintenance Type,Product Type," +
                     "Client,Project,Requester,Created At";
 
     private static final DateTimeFormatter DATE_FMT =
@@ -185,6 +185,7 @@ public class TicketExportService {
                 csv(t.getStatus() != null ? t.getStatus().name() : null),
                 csv(t.getPriority() != null ? t.getPriority().name() : null),
                 csv(t.getMaintenanceType() != null ? t.getMaintenanceType().name() : null),
+                csv(t.getProductType() != null ? t.getProductType().name() : null),
                 csv(t.getClient() != null ? t.getClient().getCompanyName() : null),
                 csv(t.getProject() != null ? t.getProject().getProjectName() : null),
                 csv(t.getRequester() != null ? t.getRequester().getName() : null),

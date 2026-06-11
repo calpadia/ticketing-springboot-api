@@ -112,6 +112,13 @@ public class SecurityConfig {
                         // Chat endpoints - accessible by ADMIN, SUPPORT, TECHNICAL_SUPPORT, and USER
                         .requestMatchers("/api/v1/chat/**").hasAnyRole("ADMIN", "SUPPORT", "TECHNICAL_SUPPORT", "USER")
 
+                        // Worklog endpoints
+                        // GET: any authenticated user with ticket access
+                        // POST (start) and PUT (stop): only support staff and admin
+                        .requestMatchers(HttpMethod.GET, "/api/v1/tickets/*/worklogs").hasAnyRole("ADMIN", "SUPPORT", "TECHNICAL_SUPPORT", "USER")
+                        .requestMatchers(HttpMethod.POST, "/api/v1/tickets/*/worklogs").hasAnyRole("ADMIN", "SUPPORT", "TECHNICAL_SUPPORT")
+                        .requestMatchers(HttpMethod.PUT, "/api/v1/tickets/*/worklogs/*/stop").hasAnyRole("ADMIN", "SUPPORT", "TECHNICAL_SUPPORT")
+
                         // Attachment endpoints - accessible by ADMIN, SUPPORT, TECHNICAL_SUPPORT, and USER
                         .requestMatchers("/api/v1/attachments/**").hasAnyRole("ADMIN", "SUPPORT", "TECHNICAL_SUPPORT", "USER")
 
