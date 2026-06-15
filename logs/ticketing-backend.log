@@ -95,3 +95,31 @@
 2026-06-15 10:43:40.491 [http-nio-8082-exec-3] INFO  com.itsm.ticketing.security.SecurityAuditLogger - SECURITY_AUDIT: AUTH_SUCCESS | user=rusdi@adm.com | ip=192.168.18.55
 2026-06-15 10:43:40.574 [http-nio-8082-exec-5] INFO  com.itsm.ticketing.controller.TicketController - GET /api/v1/tickets - Fetching tickets for user rusdi@adm.com (role: USER)
 2026-06-15 10:43:40.720 [http-nio-8082-exec-10] INFO  com.itsm.ticketing.controller.TicketController - GET /api/v1/tickets - Fetching tickets for user rusdi@adm.com (role: USER)
+2026-06-15 10:45:36.753 [http-nio-8082-exec-4] INFO  com.itsm.ticketing.controller.TicketController - GET /api/v1/tickets - Fetching tickets for user rusdi@adm.com (role: USER)
+2026-06-15 10:46:23.869 [http-nio-8082-exec-2] INFO  com.itsm.ticketing.controller.TicketController - GET /api/v1/tickets - Fetching tickets for user rusdi@adm.com (role: USER)
+2026-06-15 10:46:23.977 [http-nio-8082-exec-1] INFO  com.itsm.ticketing.controller.TicketController - GET /api/v1/tickets - Fetching tickets for user rusdi@adm.com (role: USER)
+2026-06-15 10:46:26.782 [http-nio-8082-exec-10] INFO  com.itsm.ticketing.controller.TicketController - GET /api/v1/tickets/19 - Fetching ticket by ID
+2026-06-15 10:46:26.869 [http-nio-8082-exec-9] INFO  c.i.t.controller.TicketAssignmentController - GET /api/v1/tickets/19/assignments - Fetching assignments
+2026-06-15 10:46:26.870 [http-nio-8082-exec-8] INFO  com.itsm.ticketing.controller.TicketController - GET /api/v1/tickets/19/progress - Fetching progress logs
+2026-06-15 10:46:26.871 [http-nio-8082-exec-6] INFO  c.i.ticketing.controller.TicketWorklogController - GET /api/v1/tickets/19/worklogs - Fetching worklogs
+2026-06-15 10:46:26.866 [http-nio-8082-exec-4] INFO  c.itsm.ticketing.controller.AttachmentController - GET /api/v1/attachments/ticket/19 - Fetching attachments
+2026-06-15 10:46:26.874 [http-nio-8082-exec-3] INFO  com.itsm.ticketing.controller.ChatController - GET /api/v1/chat/19 - Fetching chat history
+2026-06-15 10:46:26.969 [http-nio-8082-exec-7] ERROR c.i.ticketing.security.JwtAuthenticationEntryPoint - Unauthorized error: Full authentication is required to access this resource
+2026-06-15 10:46:35.587 [http-nio-8082-exec-5] INFO  com.itsm.ticketing.controller.AuthController - POST /api/v1/auth/login - User login attempt
+2026-06-15 10:46:35.986 [http-nio-8082-exec-5] WARN  com.itsm.ticketing.security.SecurityAuditLogger - SECURITY_AUDIT: AUTH_FAILURE | user=rusdi@gmail.com | ip=192.168.18.55 | reason=Invalid credentials
+2026-06-15 10:46:38.436 [http-nio-8082-exec-10] INFO  com.itsm.ticketing.controller.AuthController - POST /api/v1/auth/login - User login attempt
+2026-06-15 10:46:38.867 [http-nio-8082-exec-10] INFO  com.itsm.ticketing.security.SecurityAuditLogger - SECURITY_AUDIT: AUTH_SUCCESS | user=support@gmail.com | ip=192.168.18.55
+2026-06-15 10:46:38.933 [http-nio-8082-exec-4] INFO  com.itsm.ticketing.controller.TicketController - GET /api/v1/tickets - Fetching tickets for user support@gmail.com (role: SUPPORT)
+2026-06-15 10:46:39.152 [http-nio-8082-exec-9] INFO  com.itsm.ticketing.controller.TicketController - GET /api/v1/tickets - Fetching tickets for user support@gmail.com (role: SUPPORT)
+2026-06-15 10:46:41.623 [http-nio-8082-exec-2] INFO  com.itsm.ticketing.controller.TicketController - GET /api/v1/tickets/10 - Fetching ticket by ID
+2026-06-15 10:46:41.706 [http-nio-8082-exec-5] INFO  c.itsm.ticketing.controller.AttachmentController - GET /api/v1/attachments/ticket/10 - Fetching attachments
+2026-06-15 10:46:41.706 [http-nio-8082-exec-1] INFO  com.itsm.ticketing.controller.TicketController - GET /api/v1/tickets/10/progress - Fetching progress logs
+2026-06-15 10:46:41.716 [http-nio-8082-exec-3] INFO  com.itsm.ticketing.controller.ChatController - GET /api/v1/chat/10 - Fetching chat history
+2026-06-15 10:46:41.716 [http-nio-8082-exec-10] INFO  c.i.t.controller.TicketAssignmentController - GET /api/v1/tickets/10/assignments - Fetching assignments
+2026-06-15 10:46:41.748 [http-nio-8082-exec-8] INFO  c.i.ticketing.controller.TicketWorklogController - GET /api/v1/tickets/10/worklogs - Fetching worklogs
+2026-06-15 10:46:41.821 [http-nio-8082-exec-6] INFO  com.itsm.ticketing.controller.UserController - GET /api/v1/users/assignable - support@gmail.com (role: SUPPORT)
+2026-06-15 10:46:54.165 [http-nio-8082-exec-5] INFO  com.itsm.ticketing.controller.TicketController - PUT /api/v1/tickets/10/status - Updating status to CLOSED
+2026-06-15 10:46:54.165 [http-nio-8082-exec-5] INFO  com.itsm.ticketing.service.TicketService - Updating ticket 10 status to CLOSED
+2026-06-15 10:46:54.179 [http-nio-8082-exec-5] INFO  com.itsm.ticketing.service.TicketService - Ticket TKT-20260602-001 status updated: RESOLVED -> CLOSED by user support
+2026-06-15 10:46:54.261 [http-nio-8082-exec-1] INFO  com.itsm.ticketing.controller.TicketController - GET /api/v1/tickets/10 - Fetching ticket by ID
+2026-06-15 10:46:54.323 [http-nio-8082-exec-10] INFO  com.itsm.ticketing.controller.TicketController - GET /api/v1/tickets/10/progress - Fetching progress logs
