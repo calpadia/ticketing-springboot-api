@@ -51,3 +51,9 @@ application-local.properties
 Ref_API_Mfiles.json
 uploads/
 logs/
+
+### Non-backend files (root workspace) ###
+.idea/
+*.zip
+TMS-Mockup/
+ticketing-frontend/

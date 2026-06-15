@@ -1,1 +1,0 @@
-2026-06-15 10:46:26.969 [http-nio-8082-exec-7] ERROR c.i.ticketing.security.JwtAuthenticationEntryPoint - Unauthorized error: Full authentication is required to access this resource
