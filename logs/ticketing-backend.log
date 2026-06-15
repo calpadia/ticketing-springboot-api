@@ -1,0 +1,69 @@
+2026-06-15 10:38:37.891 [background-preinit] INFO  org.hibernate.validator.internal.util.Version - HV000001: Hibernate Validator 8.0.1.Final
+2026-06-15 10:38:38.011 [main] INFO  com.itsm.ticketing.TicketingBackendApplication - Starting TicketingBackendApplication using Java 22.0.1 with PID 33020 (E:\BELAJAR\E-TICKETING\ticketing-backend\target\classes started by Pongo in E:\BELAJAR\E-TICKETING)
+2026-06-15 10:38:38.011 [main] INFO  com.itsm.ticketing.TicketingBackendApplication - No active profile set, falling back to 1 default profile: "default"
+2026-06-15 10:38:40.645 [main] INFO  o.s.d.r.config.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-06-15 10:38:40.724 [main] INFO  o.s.d.r.config.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 71 ms. Found 13 JPA repository interfaces.
+2026-06-15 10:38:41.713 [main] INFO  o.s.boot.web.embedded.tomcat.TomcatWebServer - Tomcat initialized with port 8082 (http)
+2026-06-15 10:38:41.726 [main] INFO  org.apache.coyote.http11.Http11NioProtocol - Initializing ProtocolHandler ["http-nio-8082"]
+2026-06-15 10:38:41.732 [main] INFO  org.apache.catalina.core.StandardService - Starting service [Tomcat]
+2026-06-15 10:38:41.732 [main] INFO  org.apache.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/10.1.20]
+2026-06-15 10:38:41.798 [main] INFO  o.a.c.core.ContainerBase.[Tomcat].[localhost].[/] - Initializing Spring embedded WebApplicationContext
+2026-06-15 10:38:41.798 [main] INFO  o.s.b.w.s.c.ServletWebServerApplicationContext - Root WebApplicationContext: initialization completed in 3742 ms
+2026-06-15 10:38:42.153 [main] INFO  org.hibernate.jpa.internal.util.LogHelper - HHH000204: Processing PersistenceUnitInfo [name: default]
+2026-06-15 10:38:42.256 [main] INFO  org.hibernate.Version - HHH000412: Hibernate ORM core version 6.4.4.Final
+2026-06-15 10:38:42.303 [main] INFO  o.hibernate.cache.internal.RegionFactoryInitiator - HHH000026: Second-level cache disabled
+2026-06-15 10:38:42.518 [main] INFO  o.s.o.j.persistenceunit.SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-06-15 10:38:42.548 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Starting...
+2026-06-15 10:38:42.852 [main] INFO  com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@be1c08a
+2026-06-15 10:38:42.884 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Start completed.
+2026-06-15 10:38:42.973 [main] WARN  org.hibernate.orm.deprecation - HHH90000025: PostgreSQLDialect does not need to be specified explicitly using 'hibernate.dialect' (remove the property setting and it will be selected by default)
+2026-06-15 10:38:44.068 [main] INFO  o.h.e.t.jta.platform.internal.JtaPlatformInitiator - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-06-15 10:38:45.037 [main] INFO  o.s.orm.jpa.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-06-15 10:38:45.562 [main] INFO  com.itsm.ticketing.service.FileStorageService - Upload directory initialized: E:\BELAJAR\E-TICKETING\uploads
+2026-06-15 10:38:46.032 [main] WARN  o.s.b.a.o.j.JpaBaseConfiguration$JpaWebConfiguration - spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2026-06-15 10:38:46.489 [main] INFO  o.s.b.actuate.endpoint.web.EndpointLinksResolver - Exposing 1 endpoint(s) beneath base path '/actuator'
+2026-06-15 10:38:46.567 [main] INFO  o.s.security.web.DefaultSecurityFilterChain - Will secure any request with [org.springframework.security.web.session.DisableEncodeUrlFilter@24c6a471, org.springframework.security.web.context.request.async.WebAsyncManagerIntegrationFilter@1fce17b8, org.springframework.security.web.context.SecurityContextHolderFilter@3c67b7a9, org.springframework.security.web.header.HeaderWriterFilter@6070990b, org.springframework.web.filter.CorsFilter@190677c6, org.springframework.security.web.authentication.logout.LogoutFilter@23e0ef68, com.itsm.ticketing.security.SecurityHeadersFilter@c11ec9b, com.itsm.ticketing.security.RateLimitingFilter@4c32aa7e, com.itsm.ticketing.security.JwtAuthenticationFilter@45594dfe, org.springframework.security.web.savedrequest.RequestCacheAwareFilter@488ae823, org.springframework.security.web.servletapi.SecurityContextHolderAwareRequestFilter@6b8773c7, org.springframework.security.web.authentication.AnonymousAuthenticationFilter@62c019bb, org.springframework.security.web.session.SessionManagementFilter@19d85bbe, org.springframework.security.web.access.ExceptionTranslationFilter@708378cc, org.springframework.security.web.access.intercept.AuthorizationFilter@37b0a724]
+2026-06-15 10:38:47.011 [main] INFO  org.apache.coyote.http11.Http11NioProtocol - Starting ProtocolHandler ["http-nio-8082"]
+2026-06-15 10:38:47.034 [main] INFO  o.s.boot.web.embedded.tomcat.TomcatWebServer - Tomcat started on port 8082 (http) with context path ''
+2026-06-15 10:38:47.034 [main] INFO  o.s.m.simp.broker.SimpleBrokerMessageHandler - Starting...
+2026-06-15 10:38:47.037 [main] INFO  o.s.m.simp.broker.SimpleBrokerMessageHandler - BrokerAvailabilityEvent[available=true, SimpleBrokerMessageHandler [org.springframework.messaging.simp.broker.DefaultSubscriptionRegistry@4c02f50]]
+2026-06-15 10:38:47.037 [main] INFO  o.s.m.simp.broker.SimpleBrokerMessageHandler - Started.
+2026-06-15 10:38:47.048 [main] INFO  com.itsm.ticketing.TicketingBackendApplication - Started TicketingBackendApplication in 9.613 seconds (process running for 11.355)
+2026-06-15 10:38:47.146 [main] INFO  com.itsm.ticketing.config.DatabaseMigrationConfig - Applying role CHECK-constraint migrations ...
+2026-06-15 10:38:47.225 [main] INFO  com.itsm.ticketing.config.DatabaseMigrationConfig - users.role constraint OK: 'ADMIN', 'SUPPORT', 'TECHNICAL_SUPPORT', 'USER'
+2026-06-15 10:38:47.246 [main] INFO  com.itsm.ticketing.config.DatabaseMigrationConfig - chat_messages.sender_role constraint OK: 'ADMIN', 'SUPPORT', 'TECHNICAL_SUPPORT', 'USER'
+2026-06-15 10:39:30.298 [http-nio-8082-exec-2] INFO  o.a.c.core.ContainerBase.[Tomcat].[localhost].[/] - Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-06-15 10:39:30.304 [http-nio-8082-exec-2] INFO  org.springframework.web.servlet.DispatcherServlet - Initializing Servlet 'dispatcherServlet'
+2026-06-15 10:39:30.309 [http-nio-8082-exec-2] INFO  org.springframework.web.servlet.DispatcherServlet - Completed initialization in 4 ms
+2026-06-15 10:39:30.749 [http-nio-8082-exec-2] INFO  com.itsm.ticketing.controller.AuthController - POST /api/v1/auth/login - User login attempt
+2026-06-15 10:39:32.185 [http-nio-8082-exec-2] INFO  com.itsm.ticketing.security.SecurityAuditLogger - SECURITY_AUDIT: AUTH_SUCCESS | user=support@gmail.com | ip=192.168.18.55
+2026-06-15 10:39:32.501 [http-nio-8082-exec-1] INFO  com.itsm.ticketing.controller.TicketController - GET /api/v1/tickets - Fetching tickets for user support@gmail.com (role: SUPPORT)
+2026-06-15 10:39:33.482 [http-nio-8082-exec-4] INFO  com.itsm.ticketing.controller.TicketController - GET /api/v1/tickets - Fetching tickets for user support@gmail.com (role: SUPPORT)
+2026-06-15 10:39:35.847 [http-nio-8082-exec-10] INFO  com.itsm.ticketing.controller.TicketController - GET /api/v1/tickets - Fetching tickets for user support@gmail.com (role: SUPPORT)
+2026-06-15 10:39:38.664 [http-nio-8082-exec-9] INFO  com.itsm.ticketing.controller.TicketController - GET /api/v1/tickets/19 - Fetching ticket by ID
+2026-06-15 10:39:38.902 [http-nio-8082-exec-5] INFO  c.i.ticketing.controller.TicketWorklogController - GET /api/v1/tickets/19/worklogs - Fetching worklogs
+2026-06-15 10:39:38.909 [http-nio-8082-exec-8] INFO  com.itsm.ticketing.controller.TicketController - GET /api/v1/tickets/19/progress - Fetching progress logs
+2026-06-15 10:39:38.915 [http-nio-8082-exec-3] INFO  c.i.t.controller.TicketAssignmentController - GET /api/v1/tickets/19/assignments - Fetching assignments
+2026-06-15 10:39:38.915 [http-nio-8082-exec-6] INFO  com.itsm.ticketing.controller.ChatController - GET /api/v1/chat/19 - Fetching chat history
+2026-06-15 10:39:38.916 [http-nio-8082-exec-2] INFO  c.itsm.ticketing.controller.AttachmentController - GET /api/v1/attachments/ticket/19 - Fetching attachments
+2026-06-15 10:39:39.825 [http-nio-8082-exec-1] INFO  com.itsm.ticketing.controller.UserController - GET /api/v1/users/assignable - support@gmail.com (role: SUPPORT)
+2026-06-15 10:39:46.985 [MessageBroker-4] INFO  o.s.web.socket.config.WebSocketMessageBrokerStats - WebSocketSession[2 current WS(2)-HttpStream(0)-HttpPoll(0), 2 total, 0 closed abnormally (0 connect failure, 0 send limit, 0 transport error)], stompSubProtocol[processed CONNECT(2)-CONNECTED(2)-DISCONNECT(0)], stompBrokerRelay[null], inboundChannel[pool size = 32, active threads = 0, queued tasks = 0, completed tasks = 129], outboundChannel[pool size = 2, active threads = 0, queued tasks = 0, completed tasks = 2], sockJsScheduler[pool size = 9, active threads = 1, queued tasks = 3, completed tasks = 3]
+2026-06-15 10:39:54.623 [http-nio-8082-exec-2] INFO  c.i.ticketing.controller.TicketWorklogController - PUT /api/v1/tickets/19/worklogs/5/stop - Stopping worklog
+2026-06-15 10:39:54.623 [http-nio-8082-exec-2] INFO  com.itsm.ticketing.service.TicketWorklogService - Stopping worklog 5 on ticket 19
+2026-06-15 10:39:54.642 [http-nio-8082-exec-2] INFO  com.itsm.ticketing.service.TicketWorklogService - Worklog 5 stopped. Duration: 323187s
+2026-06-15 10:39:54.748 [http-nio-8082-exec-6] INFO  c.i.ticketing.controller.TicketWorklogController - GET /api/v1/tickets/19/worklogs - Fetching worklogs
+2026-06-15 10:40:06.482 [http-nio-8082-exec-8] INFO  c.i.t.controller.TicketAssignmentController - POST /api/v1/tickets/19/assign - Assigning 1 support user(s) by support@gmail.com
+2026-06-15 10:40:06.513 [http-nio-8082-exec-8] WARN  c.itsm.ticketing.service.TicketAssignmentService - User purbaya@gmail.com already assigned to ticket TKT-20260611-004, skipping
+2026-06-15 10:40:06.588 [http-nio-8082-exec-3] INFO  c.i.t.controller.TicketAssignmentController - GET /api/v1/tickets/19/assignments - Fetching assignments
+2026-06-15 10:40:06.688 [http-nio-8082-exec-5] INFO  c.i.ticketing.controller.TicketWorklogController - POST /api/v1/tickets/19/worklogs - User support@gmail.com starting worklog
+2026-06-15 10:40:06.688 [http-nio-8082-exec-5] INFO  com.itsm.ticketing.service.TicketWorklogService - Starting worklog on ticket 19 by user support (18)
+2026-06-15 10:40:06.746 [http-nio-8082-exec-5] INFO  com.itsm.ticketing.service.TicketWorklogService - Worklog 6 started for ticket 19 by user support
+2026-06-15 10:40:06.803 [http-nio-8082-exec-1] INFO  c.i.ticketing.controller.TicketWorklogController - GET /api/v1/tickets/19/worklogs - Fetching worklogs
+2026-06-15 10:40:11.839 [http-nio-8082-exec-4] INFO  c.i.ticketing.controller.TicketWorklogController - PUT /api/v1/tickets/19/worklogs/6/stop - Stopping worklog
+2026-06-15 10:40:11.839 [http-nio-8082-exec-4] INFO  com.itsm.ticketing.service.TicketWorklogService - Stopping worklog 6 on ticket 19
+2026-06-15 10:40:11.853 [http-nio-8082-exec-4] INFO  com.itsm.ticketing.service.TicketWorklogService - Worklog 6 stopped. Duration: 3s
+2026-06-15 10:40:11.932 [http-nio-8082-exec-7] INFO  c.i.ticketing.controller.TicketWorklogController - GET /api/v1/tickets/19/worklogs - Fetching worklogs
+2026-06-15 10:40:57.634 [http-nio-8082-exec-10] INFO  com.itsm.ticketing.controller.TicketController - PUT /api/v1/tickets/19/status - Updating status to CLOSED
+2026-06-15 10:40:57.634 [http-nio-8082-exec-10] INFO  com.itsm.ticketing.service.TicketService - Updating ticket 19 status to CLOSED
+2026-06-15 10:40:59.823 [http-nio-8082-exec-9] INFO  com.itsm.ticketing.controller.TicketController - PUT /api/v1/tickets/19/status - Updating status to CLOSED
+2026-06-15 10:40:59.824 [http-nio-8082-exec-9] INFO  com.itsm.ticketing.service.TicketService - Updating ticket 19 status to CLOSED
