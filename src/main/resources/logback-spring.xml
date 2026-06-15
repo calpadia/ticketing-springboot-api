@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+
+    <!-- ======================== -->
+    <!-- PROPERTIES               -->
+    <!-- ======================== -->
+    <property name="LOG_DIR" value="./logs" />
+    <property name="APP_NAME" value="ticketing-backend" />
+    <property name="LOG_PATTERN" value="%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{50} - %msg%n" />
+
+    <!-- ======================== -->
+    <!-- CONSOLE APPENDER         -->
+    <!-- ======================== -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>${LOG_PATTERN}</pattern>
+        </encoder>
+    </appender>
+
+    <!-- ======================== -->
+    <!-- FILE APPENDER (DAILY)    -->
+    <!-- Rolling per hari, archive zip setelah 30 hari -->
+    <!-- ======================== -->
+    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <!-- File log aktif hari ini -->
+        <file>${LOG_DIR}/${APP_NAME}.log</file>
+
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <!-- Nama file archive: ticketing-backend.2026-05-25.log.gz -->
+            <fileNamePattern>${LOG_DIR}/archive/${APP_NAME}.%d{yyyy-MM-dd}.log.gz</fileNamePattern>
+
+            <!-- Hapus log archive setelah 30 hari -->
+            <maxHistory>30</maxHistory>
+
+            <!-- Total ukuran maksimum semua archive: 1GB -->
+            <totalSizeCap>1GB</totalSizeCap>
+        </rollingPolicy>
+
+        <encoder>
+            <pattern>${LOG_PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <!-- ======================== -->
+    <!-- ERROR-ONLY FILE APPENDER -->
+    <!-- Khusus log ERROR saja    -->
+    <!-- ======================== -->
+    <appender name="ERROR_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_DIR}/${APP_NAME}-error.log</file>
+
+        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+            <level>ERROR</level>
+        </filter>
+
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_DIR}/archive/${APP_NAME}-error.%d{yyyy-MM-dd}.log.gz</fileNamePattern>
+            <maxHistory>30</maxHistory>
+            <totalSizeCap>500MB</totalSizeCap>
+        </rollingPolicy>
+
+        <encoder>
+            <pattern>${LOG_PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <!-- ======================== -->
+    <!-- LOGGER CONFIGURATION     -->
+    <!-- ======================== -->
+
+    <!-- Application logger -->
+    <logger name="com.itsm.ticketing" level="INFO" />
+
+    <!-- Hibernate SQL logger (production: WARN) -->
+    <logger name="org.hibernate.SQL" level="WARN" />
+
+    <!-- Spring Framework -->
+    <logger name="org.springframework" level="INFO" />
+
+    <!-- ======================== -->
+    <!-- ROOT LOGGER              -->
+    <!-- ======================== -->
+    <root level="INFO">
+        <appender-ref ref="CONSOLE" />
+        <appender-ref ref="FILE" />
+        <appender-ref ref="ERROR_FILE" />
+    </root>
+
+</configuration>
