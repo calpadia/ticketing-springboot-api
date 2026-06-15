@@ -67,3 +67,31 @@
 2026-06-15 10:40:57.634 [http-nio-8082-exec-10] INFO  com.itsm.ticketing.service.TicketService - Updating ticket 19 status to CLOSED
 2026-06-15 10:40:59.823 [http-nio-8082-exec-9] INFO  com.itsm.ticketing.controller.TicketController - PUT /api/v1/tickets/19/status - Updating status to CLOSED
 2026-06-15 10:40:59.824 [http-nio-8082-exec-9] INFO  com.itsm.ticketing.service.TicketService - Updating ticket 19 status to CLOSED
+2026-06-15 10:43:03.247 [http-nio-8082-exec-8] INFO  com.itsm.ticketing.controller.TicketController - GET /api/v1/tickets - Fetching tickets for user support@gmail.com (role: SUPPORT)
+2026-06-15 10:43:08.785 [http-nio-8082-exec-6] INFO  com.itsm.ticketing.controller.AuthController - POST /api/v1/auth/login - User login attempt
+2026-06-15 10:43:08.932 [http-nio-8082-exec-6] INFO  com.itsm.ticketing.security.SecurityAuditLogger - SECURITY_AUDIT: AUTH_SUCCESS | user=mewing@gmail.com | ip=192.168.18.55
+2026-06-15 10:43:09.032 [http-nio-8082-exec-8] INFO  com.itsm.ticketing.controller.TicketController - GET /api/v1/tickets - Fetching tickets for user mewing@gmail.com (role: ADMIN)
+2026-06-15 10:43:09.414 [http-nio-8082-exec-4] INFO  com.itsm.ticketing.controller.TicketController - GET /api/v1/tickets - Fetching tickets for user mewing@gmail.com (role: ADMIN)
+2026-06-15 10:43:09.433 [http-nio-8082-exec-7] INFO  com.itsm.ticketing.controller.ClientController - GET /api/v1/clients - Fetching all clients
+2026-06-15 10:43:09.483 [http-nio-8082-exec-10] INFO  com.itsm.ticketing.controller.UserController - GET /api/v1/users - Fetching all users
+2026-06-15 10:43:10.563 [http-nio-8082-exec-2] INFO  com.itsm.ticketing.controller.TicketController - GET /api/v1/tickets - Fetching tickets for user mewing@gmail.com (role: ADMIN)
+2026-06-15 10:43:11.049 [http-nio-8082-exec-5] INFO  com.itsm.ticketing.controller.TicketController - GET /api/v1/tickets - Fetching tickets for user mewing@gmail.com (role: ADMIN)
+2026-06-15 10:43:11.406 [http-nio-8082-exec-8] INFO  com.itsm.ticketing.controller.ClientController - GET /api/v1/clients - Fetching all clients
+2026-06-15 10:43:11.462 [http-nio-8082-exec-7] INFO  com.itsm.ticketing.controller.UserController - GET /api/v1/users - Fetching all users
+2026-06-15 10:43:11.589 [http-nio-8082-exec-10] INFO  c.itsm.ticketing.controller.ClientQuotaController - GET /api/v1/client-quotas - Fetching all client quotas
+2026-06-15 10:43:19.224 [http-nio-8082-exec-2] INFO  com.itsm.ticketing.controller.AuthController - POST /api/v1/auth/login - User login attempt
+2026-06-15 10:43:19.392 [http-nio-8082-exec-2] INFO  com.itsm.ticketing.security.SecurityAuditLogger - SECURITY_AUDIT: AUTH_SUCCESS | user=mewing@gmail.com | ip=192.168.18.55
+2026-06-15 10:43:19.492 [http-nio-8082-exec-6] INFO  com.itsm.ticketing.controller.TicketController - GET /api/v1/tickets - Fetching tickets for user mewing@gmail.com (role: ADMIN)
+2026-06-15 10:43:19.842 [http-nio-8082-exec-7] INFO  com.itsm.ticketing.controller.ClientController - GET /api/v1/clients - Fetching all clients
+2026-06-15 10:43:19.842 [http-nio-8082-exec-8] INFO  com.itsm.ticketing.controller.TicketController - GET /api/v1/tickets - Fetching tickets for user mewing@gmail.com (role: ADMIN)
+2026-06-15 10:43:19.897 [http-nio-8082-exec-10] INFO  com.itsm.ticketing.controller.UserController - GET /api/v1/users - Fetching all users
+2026-06-15 10:43:25.738 [http-nio-8082-exec-3] INFO  com.itsm.ticketing.controller.AuthController - POST /api/v1/auth/login - User login attempt
+2026-06-15 10:43:26.256 [http-nio-8082-exec-3] INFO  com.itsm.ticketing.security.SecurityAuditLogger - SECURITY_AUDIT: AUTH_SUCCESS | user=support@gmail.com | ip=192.168.18.55
+2026-06-15 10:43:26.368 [http-nio-8082-exec-1] INFO  com.itsm.ticketing.controller.TicketController - GET /api/v1/tickets - Fetching tickets for user support@gmail.com (role: SUPPORT)
+2026-06-15 10:43:26.613 [http-nio-8082-exec-10] INFO  com.itsm.ticketing.controller.TicketController - GET /api/v1/tickets - Fetching tickets for user support@gmail.com (role: SUPPORT)
+2026-06-15 10:43:37.053 [http-nio-8082-exec-2] INFO  com.itsm.ticketing.controller.AuthController - POST /api/v1/auth/login - User login attempt
+2026-06-15 10:43:37.508 [http-nio-8082-exec-2] WARN  com.itsm.ticketing.security.SecurityAuditLogger - SECURITY_AUDIT: AUTH_FAILURE | user=rusdi@gmail.com | ip=192.168.18.55 | reason=Invalid credentials
+2026-06-15 10:43:40.354 [http-nio-8082-exec-3] INFO  com.itsm.ticketing.controller.AuthController - POST /api/v1/auth/login - User login attempt
+2026-06-15 10:43:40.491 [http-nio-8082-exec-3] INFO  com.itsm.ticketing.security.SecurityAuditLogger - SECURITY_AUDIT: AUTH_SUCCESS | user=rusdi@adm.com | ip=192.168.18.55
+2026-06-15 10:43:40.574 [http-nio-8082-exec-5] INFO  com.itsm.ticketing.controller.TicketController - GET /api/v1/tickets - Fetching tickets for user rusdi@adm.com (role: USER)
+2026-06-15 10:43:40.720 [http-nio-8082-exec-10] INFO  com.itsm.ticketing.controller.TicketController - GET /api/v1/tickets - Fetching tickets for user rusdi@adm.com (role: USER)
