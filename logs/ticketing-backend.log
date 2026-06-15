@@ -123,3 +123,9 @@
 2026-06-15 10:46:54.179 [http-nio-8082-exec-5] INFO  com.itsm.ticketing.service.TicketService - Ticket TKT-20260602-001 status updated: RESOLVED -> CLOSED by user support
 2026-06-15 10:46:54.261 [http-nio-8082-exec-1] INFO  com.itsm.ticketing.controller.TicketController - GET /api/v1/tickets/10 - Fetching ticket by ID
 2026-06-15 10:46:54.323 [http-nio-8082-exec-10] INFO  com.itsm.ticketing.controller.TicketController - GET /api/v1/tickets/10/progress - Fetching progress logs
+2026-06-15 10:47:52.133 [http-nio-8082-exec-9] INFO  com.itsm.ticketing.controller.AuthController - POST /api/v1/auth/login - User login attempt
+2026-06-15 10:47:52.260 [http-nio-8082-exec-9] INFO  com.itsm.ticketing.security.SecurityAuditLogger - SECURITY_AUDIT: AUTH_SUCCESS | user=mewing@gmail.com | ip=192.168.18.55
+2026-06-15 10:47:52.335 [http-nio-8082-exec-7] INFO  com.itsm.ticketing.controller.TicketController - GET /api/v1/tickets - Fetching tickets for user mewing@gmail.com (role: ADMIN)
+2026-06-15 10:47:52.675 [http-nio-8082-exec-5] INFO  com.itsm.ticketing.controller.ClientController - GET /api/v1/clients - Fetching all clients
+2026-06-15 10:47:52.738 [http-nio-8082-exec-1] INFO  com.itsm.ticketing.controller.UserController - GET /api/v1/users - Fetching all users
+2026-06-15 10:47:53.166 [http-nio-8082-exec-3] INFO  com.itsm.ticketing.controller.TicketController - GET /api/v1/tickets - Fetching tickets for user mewing@gmail.com (role: ADMIN)
