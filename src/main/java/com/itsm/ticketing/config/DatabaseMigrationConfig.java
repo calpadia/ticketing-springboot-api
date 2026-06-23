@@ -12,10 +12,11 @@ import java.sql.Statement;
 /**
  * One-time database migration to update CHECK constraints on enum columns
  * after adding new {@link com.itsm.ticketing.entity.Role} values
- * (SUPPORT, TECHNICAL_SUPPORT).
+ * (SUPPORT, TECHNICAL_SUPPORT), and to create the notification-related
+ * table {@code ticket_user_reads} used by the server-side read receipt system.
  *
- * <p>Each statement uses {@code DROP CONSTRAINT IF EXISTS} so it is safe to
- * run multiple times. This can be removed once the deployed environment
+ * <p>Each statement uses {@code DROP CONSTRAINT IF EXISTS} / {@code CREATE TABLE IF NOT EXISTS}
+ * so it is safe to run multiple times. This can be removed once the deployed environment
  * has applied all the constraints.</p>
  */
 @Configuration
@@ -66,6 +67,25 @@ public class DatabaseMigrationConfig {
                 } catch (Exception ignored) {
                     log.debug("ticket_progress_logs.changed_by_role constraint skipped (column may not exist)");
                 }
+
+                // -------------------------------------------------------------
+                // ticket_user_reads — server-side read receipt table.
+                // Composite PK (ticket_id, user_id) + last_read_at watermark.
+                // Safe to run multiple times due to IF NOT EXISTS.
+                // -------------------------------------------------------------
+                stmt.execute("""
+                        CREATE TABLE IF NOT EXISTS ticket_user_reads (
+                            ticket_id    BIGINT NOT NULL,
+                            user_id      BIGINT NOT NULL,
+                            last_read_at TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+                            PRIMARY KEY (ticket_id, user_id),
+                            CONSTRAINT fk_tur_ticket FOREIGN KEY (ticket_id)
+                                REFERENCES tickets(id) ON DELETE CASCADE,
+                            CONSTRAINT fk_tur_user FOREIGN KEY (user_id)
+                                REFERENCES users(id) ON DELETE CASCADE
+                        )
+                        """);
+                log.info("ticket_user_reads table created or already exists");
 
             } catch (Exception e) {
                 log.warn("Role constraint migration skipped or partially applied: {}", e.getMessage());

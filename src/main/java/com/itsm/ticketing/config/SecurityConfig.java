@@ -104,10 +104,16 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/v1/tickets/my-assignments").hasAnyRole("ADMIN", "SUPPORT", "TECHNICAL_SUPPORT")
                         .requestMatchers(HttpMethod.GET, "/api/v1/tickets/**").hasAnyRole("ADMIN", "SUPPORT", "TECHNICAL_SUPPORT", "USER")
                         .requestMatchers(HttpMethod.PUT, "/api/v1/tickets/**").hasAnyRole("ADMIN", "SUPPORT", "TECHNICAL_SUPPORT", "USER")
+                        // Mark ticket as read — must be before broader PUT rule
+                        .requestMatchers(HttpMethod.POST, "/api/v1/tickets/*/read").hasAnyRole("ADMIN", "SUPPORT", "TECHNICAL_SUPPORT", "USER")
                         // SUPPORT boleh assign/reassign ticket ke TECHNICAL_SUPPORT (eskalasi)
                         .requestMatchers(HttpMethod.POST, "/api/v1/tickets/*/assign").hasAnyRole("ADMIN", "SUPPORT")
                         .requestMatchers(HttpMethod.POST, "/api/v1/tickets/*/unassign").hasAnyRole("ADMIN", "SUPPORT")
                         .requestMatchers(HttpMethod.POST, "/api/v1/tickets/*/reassign").hasAnyRole("ADMIN", "SUPPORT")
+
+                        // Notification endpoints - unread count + mark as read
+                        // Accessible by all authenticated roles
+                        .requestMatchers(HttpMethod.GET, "/api/v1/notifications/**").hasAnyRole("ADMIN", "SUPPORT", "TECHNICAL_SUPPORT", "USER")
 
                         // Chat endpoints - accessible by ADMIN, SUPPORT, TECHNICAL_SUPPORT, and USER
                         .requestMatchers("/api/v1/chat/**").hasAnyRole("ADMIN", "SUPPORT", "TECHNICAL_SUPPORT", "USER")

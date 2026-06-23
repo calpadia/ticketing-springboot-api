@@ -7,6 +7,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
+import java.util.Map;
+
 /**
  * Broadcasts ticket state changes over WebSocket AFTER the DB transaction commits.
  *
@@ -19,9 +21,10 @@ import org.springframework.transaction.event.TransactionalEventListener;
  *
  * <h3>Topic layout</h3>
  * <pre>
- * /topic/tickets/new           → broadcast when a ticket is created
- * /topic/tickets/{id}/status   → broadcast when ticket status changes
- * /topic/tickets/{id}/assigned → broadcast when assignment changes
+ * /topic/tickets/new              → broadcast when a ticket is created
+ * /topic/tickets/{id}/status      → broadcast when ticket status changes
+ * /topic/tickets/{id}/assigned    → broadcast when assignment changes
+ * /topic/notifications/unread     → nudge to re-fetch unread count (CREATED events)
  * </pre>
  */
 @Component
@@ -46,5 +49,15 @@ public class TicketEventListener {
 
         messagingTemplate.convertAndSend(destination, event.getPayload());
         log.debug("WebSocket broadcast: {} → {}", event.getType(), destination);
+
+        // For CREATED events: nudge all connected clients to re-fetch their unread count.
+        // This ensures the badge increments in real-time when a new ticket arrives.
+        if (event.getType() == TicketEvent.Type.CREATED) {
+            messagingTemplate.convertAndSend("/topic/notifications/unread", Map.of(
+                    "type", "NEW_TICKET",
+                    "ticketId", event.getPayload().getId()
+            ));
+            log.debug("Unread notification broadcast for new ticket {}", event.getPayload().getId());
+        }
     }
 }

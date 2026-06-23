@@ -41,29 +41,44 @@ public class TicketWorklogService {
     /**
      * Start a new worklog timer for a user on a ticket.
      *
+     * <p>If {@code request.targetUserId} is provided, the worklog is created on behalf of
+     * that user (the worker). Otherwise the caller is used as the worker.
+     * The active-timer constraint is checked against the resolved worker, not the caller.
+     *
      * @param ticketId the ticket ID
      * @param caller   the authenticated user starting the timer
-     * @param request  optional task notes
+     * @param request  optional task notes and optional targetUserId
      * @return the created worklog response
      */
     @Transactional
     public WorklogResponse startWorklog(Long ticketId, User caller, CreateWorklogRequest request) {
-        log.info("Starting worklog on ticket {} by user {} ({})", ticketId, caller.getName(), caller.getId());
+        log.info("Starting worklog on ticket {} by caller {} ({})", ticketId, caller.getName(), caller.getId());
 
         // Validate ticket exists
         Ticket ticket = ticketRepository.findById(ticketId)
                 .orElseThrow(() -> new ResourceNotFoundException("Ticket not found with ID: " + ticketId));
 
+        // Resolve the actual worker — use targetUserId if provided, else the caller
+        User worker = caller;
+        if (request != null && request.getTargetUserId() != null) {
+            worker = userRepository.findById(request.getTargetUserId())
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "User not found with ID: " + request.getTargetUserId()));
+            log.info("Worklog will be created on behalf of user {} ({}) by caller {} ({})",
+                    worker.getName(), worker.getId(), caller.getName(), caller.getId());
+        }
+
         // Multiple worklogs can run simultaneously — no constraint on active timers per ticket
         TicketWorklog worklog = TicketWorklog.builder()
                 .ticket(ticket)
-                .user(caller)
+                .user(worker)   // use resolved worker, not always caller
                 .taskNotes(request != null ? request.getTaskNotes() : null)
                 .startedAt(LocalDateTime.now())
                 .build();
 
         TicketWorklog saved = worklogRepository.save(worklog);
-        log.info("Worklog {} started for ticket {} by user {}", saved.getId(), ticketId, caller.getName());
+        log.info("Worklog {} started for ticket {} — worker: {}, caller: {}",
+                saved.getId(), ticketId, worker.getName(), caller.getName());
 
         return mapToResponse(saved);
     }

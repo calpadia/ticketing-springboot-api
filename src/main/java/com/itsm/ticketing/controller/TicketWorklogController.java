@@ -35,7 +35,10 @@ public class TicketWorklogController {
 
     /**
      * Start a new worklog timer on a ticket.
-     * The authenticated user is automatically set as the worklog owner.
+     *
+     * <p>The authenticated user is set as the caller. If {@code request.targetUserId} is
+     * provided, the worklog is created on behalf of that user (the actual worker).
+     * This allows a SUPPORT user to start a timer for a TECHNICAL_SUPPORT.
      */
     @PostMapping
     public ResponseEntity<WorklogResponse> startWorklog(
@@ -43,8 +46,9 @@ public class TicketWorklogController {
             @RequestBody(required = false) CreateWorklogRequest request,
             @AuthenticationPrincipal User currentUser) {
 
-        log.info("POST /api/v1/tickets/{}/worklogs - User {} starting worklog",
-                ticketId, currentUser.getEmail());
+        log.info("POST /api/v1/tickets/{}/worklogs - User {} starting worklog (targetUserId={})",
+                ticketId, currentUser.getEmail(),
+                request != null ? request.getTargetUserId() : null);
 
         WorklogResponse response = worklogService.startWorklog(ticketId, currentUser, request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);

@@ -13,6 +13,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -40,6 +41,7 @@ public class ChatService {
     private final ChatMessageRepository chatMessageRepository;
     private final ChatAttachmentRepository chatAttachmentRepository;
     private final TicketRepository ticketRepository;
+    private final SimpMessagingTemplate messagingTemplate;
 
     @Value("${file.upload-dir:./uploads}")
     private String uploadDir;
@@ -246,6 +248,15 @@ public class ChatService {
 
         log.info("Chat message saved: id={}, ticketId={}, sender={}, attachments={}",
                 saved.getId(), ticket.getId(), sender.getEmail(), attachmentInfos.size());
+
+        // Nudge all connected clients to re-fetch their unread count.
+        // We send an empty map as payload — the frontend only needs the signal,
+        // not the data (it will call GET /api/v1/notifications/unread-count itself).
+        messagingTemplate.convertAndSend("/topic/notifications/unread", Map.of(
+                "type", "NEW_MESSAGE",
+                "ticketId", ticket.getId()
+        ));
+        log.debug("Unread notification broadcast for ticket {} after new message", ticket.getId());
 
         ChatMessageResponse response = mapToResponse(saved);
         response.setAttachments(attachmentInfos);
