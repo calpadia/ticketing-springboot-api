@@ -79,4 +79,18 @@ public interface TicketUserReadRepository extends JpaRepository<TicketUserRead, 
             """)
     long countUnreadMessages(@Param("userId") Long userId,
                              @Param("accessibleTicketIds") List<Long> accessibleTicketIds);
+
+    /**
+     * Check whether the user has ever opened (read) a specific ticket.
+     * Used to populate the {@code isRead} flag on each {@link com.itsm.ticketing.dto.TicketResponse}
+     * so the frontend can highlight unread ticket rows with a "NEW" badge.
+     *
+     * <p>Returns {@code true} if a {@link TicketUserRead} record exists for the given
+     * (ticketId, userId) pair — i.e. the user has opened the ticket detail page at least once.</p>
+     *
+     * @param ticketId the ticket ID
+     * @param userId   the user ID
+     * @return true if a read receipt exists, false otherwise
+     */
+    boolean existsByIdTicketIdAndIdUserId(Long ticketId, Long userId);
 }

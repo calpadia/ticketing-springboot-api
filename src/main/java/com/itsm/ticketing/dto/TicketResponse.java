@@ -50,4 +50,14 @@ public class TicketResponse {
     private List<TicketAssignmentResponse> assignments;
 
     private LocalDateTime createdAt;
+
+    /**
+     * Whether the currently authenticated user has opened (read) this ticket.
+     * <p>
+     * {@code false} — user has never opened this ticket detail page → show "NEW" badge.<br>
+     * {@code true}  — user has opened this ticket at least once.<br>
+     * {@code null}  — not applicable (e.g. response from status-update endpoint).
+     * </p>
+     */
+    private Boolean isRead;
 }

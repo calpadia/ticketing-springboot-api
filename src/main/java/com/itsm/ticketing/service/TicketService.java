@@ -16,6 +16,7 @@ import com.itsm.ticketing.repository.ProjectRepository;
 import com.itsm.ticketing.repository.TicketAssignmentRepository;
 import com.itsm.ticketing.repository.TicketProgressLogRepository;
 import com.itsm.ticketing.repository.TicketRepository;
+import com.itsm.ticketing.repository.TicketUserReadRepository;
 import com.itsm.ticketing.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -49,6 +50,7 @@ public class TicketService {
     private final TicketAssignmentRepository assignmentRepository;
     private final ClientSupportService clientSupportService;
     private final ApplicationEventPublisher eventPublisher;
+    private final TicketUserReadRepository ticketUserReadRepository;
 
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMdd");
 
@@ -186,7 +188,7 @@ public class TicketService {
                 .map(ticket -> {
                     List<AttachmentResponse> attachments =
                             fileStorageService.getAttachmentsByTicketId(ticket.getId());
-                    return mapToResponse(ticket, attachments);
+                    return mapToResponse(ticket, attachments, currentUser.getId());
                 })
                 .collect(Collectors.toList());
     }
@@ -207,7 +209,7 @@ public class TicketService {
         validateTicketAccess(ticket, currentUser);
         List<AttachmentResponse> attachments =
                 fileStorageService.getAttachmentsByTicketId(id);
-        return mapToResponse(ticket, attachments);
+        return mapToResponse(ticket, attachments, currentUser.getId());
     }
 
     /**
@@ -225,7 +227,7 @@ public class TicketService {
         validateTicketAccess(ticket, currentUser);
         List<AttachmentResponse> attachments =
                 fileStorageService.getAttachmentsByTicketId(ticket.getId());
-        return mapToResponse(ticket, attachments);
+        return mapToResponse(ticket, attachments, currentUser.getId());
     }
 
     /**
@@ -338,14 +340,35 @@ public class TicketService {
 
     /**
      * Maps a Ticket entity to a TicketResponse DTO.
+     * {@code isRead} is set to null — use the overload with userId for user-facing endpoints.
      */
     private TicketResponse mapToResponse(Ticket ticket, List<AttachmentResponse> attachments) {
+        return mapToResponse(ticket, attachments, null);
+    }
+
+    /**
+     * Maps a Ticket entity to a TicketResponse DTO, computing {@code isRead} for the given user.
+     *
+     * <p>{@code isRead = true} when a {@link com.itsm.ticketing.entity.TicketUserRead} record
+     * exists for (ticketId, userId), meaning the user has opened this ticket detail at least once.
+     * {@code isRead = false} when no such record exists — frontend should show the "NEW" badge.</p>
+     *
+     * @param ticket      the ticket entity
+     * @param attachments pre-loaded attachment responses
+     * @param userId      the ID of the viewing user; pass null to leave isRead as null
+     */
+    private TicketResponse mapToResponse(Ticket ticket, List<AttachmentResponse> attachments, Long userId) {
         // Get active assignments for this ticket
         List<TicketAssignmentResponse> assignments = assignmentRepository
                 .findByTicketIdAndActiveTrue(ticket.getId())
                 .stream()
                 .map(this::mapAssignmentToResponse)
                 .collect(Collectors.toList());
+
+        // Compute isRead: true if the viewing user has ever opened this ticket detail page
+        Boolean isRead = (userId != null)
+                ? ticketUserReadRepository.existsByIdTicketIdAndIdUserId(ticket.getId(), userId)
+                : null;
 
         TicketResponse.TicketResponseBuilder builder = TicketResponse.builder()
                 .id(ticket.getId())
@@ -362,7 +385,8 @@ public class TicketService {
                 .requesterName(ticket.getRequester().getName())
                 .attachments(attachments)
                 .assignments(assignments)
-                .createdAt(ticket.getCreatedAt());
+                .createdAt(ticket.getCreatedAt())
+                .isRead(isRead);
 
         // Include project info if available
         if (ticket.getProject() != null) {
