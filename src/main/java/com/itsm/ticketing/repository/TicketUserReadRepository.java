@@ -93,4 +93,37 @@ public interface TicketUserReadRepository extends JpaRepository<TicketUserRead, 
      * @return true if a read receipt exists, false otherwise
      */
     boolean existsByIdTicketIdAndIdUserId(Long ticketId, Long userId);
+
+    /**
+     * Count unread chat messages for a single ticket for the given user.
+     *
+     * <p>A message is considered unread when:</p>
+     * <ul>
+     *   <li>It was sent by someone else (not the current user), AND</li>
+     *   <li>The user has never opened that ticket (no row in ticket_user_reads), OR</li>
+     *   <li>The message was sent after the user last read the ticket</li>
+     * </ul>
+     *
+     * @param ticketId the specific ticket ID
+     * @param userId   the user ID
+     * @return count of unread messages for this ticket
+     */
+    @Query("""
+            SELECT COUNT(m) FROM ChatMessage m
+            WHERE m.ticket.id = :ticketId
+              AND m.sender.id != :userId
+              AND (
+                NOT EXISTS (
+                  SELECT r FROM TicketUserRead r
+                  WHERE r.id.ticketId = :ticketId AND r.id.userId = :userId
+                )
+                OR m.sentAt > (
+                  SELECT r.lastReadAt FROM TicketUserRead r
+                  WHERE r.id.ticketId = :ticketId AND r.id.userId = :userId
+                )
+              )
+            """)
+    long countUnreadMessagesByTicketAndUser(@Param("ticketId") Long ticketId,
+                                            @Param("userId") Long userId);
 }
+

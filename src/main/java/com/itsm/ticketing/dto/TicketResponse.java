@@ -60,4 +60,13 @@ public class TicketResponse {
      * </p>
      */
     private Boolean isRead;
+
+    /**
+     * Jumlah chat milik orang lain di tiket ini yang dikirim
+     * SETELAH 'last_read_at' milik user yang sedang login.
+     * <p>
+     * {@code null} — not applicable (e.g. response from status-update endpoint).
+     * </p>
+     */
+    private Long unreadMessageCount;
 }

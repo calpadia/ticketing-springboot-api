@@ -370,6 +370,11 @@ public class TicketService {
                 ? ticketUserReadRepository.existsByIdTicketIdAndIdUserId(ticket.getId(), userId)
                 : null;
 
+        // Compute unreadMessageCount: messages sent by others after this user's last read
+        Long unreadMessageCount = (userId != null)
+                ? ticketUserReadRepository.countUnreadMessagesByTicketAndUser(ticket.getId(), userId)
+                : null;
+
         TicketResponse.TicketResponseBuilder builder = TicketResponse.builder()
                 .id(ticket.getId())
                 .ticketNumber(ticket.getTicketNumber())
@@ -386,7 +391,8 @@ public class TicketService {
                 .attachments(attachments)
                 .assignments(assignments)
                 .createdAt(ticket.getCreatedAt())
-                .isRead(isRead);
+                .isRead(isRead)
+                .unreadMessageCount(unreadMessageCount);
 
         // Include project info if available
         if (ticket.getProject() != null) {
