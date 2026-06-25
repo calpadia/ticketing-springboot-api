@@ -1,5 +1,6 @@
 package com.itsm.ticketing.config;
 
+import com.itsm.ticketing.security.CustomAccessDeniedHandler;
 import com.itsm.ticketing.security.JwtAuthenticationEntryPoint;
 import com.itsm.ticketing.security.JwtAuthenticationFilter;
 import com.itsm.ticketing.security.RateLimitingFilter;
@@ -42,6 +43,7 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthFilter;
     private final JwtAuthenticationEntryPoint jwtAuthEntryPoint;
+    private final CustomAccessDeniedHandler customAccessDeniedHandler;
     private final UserDetailsService userDetailsService;
     private final PasswordEncoder passwordEncoder;
     private final CorsConfigurationSource corsConfigurationSource;
@@ -60,6 +62,7 @@ public class SecurityConfig {
                 // Exception handling
                 .exceptionHandling(exception -> exception
                         .authenticationEntryPoint(jwtAuthEntryPoint)
+                        .accessDeniedHandler(customAccessDeniedHandler) // Prevent 403 → 401 mutation
                 )
 
                 // Stateless session management (NIST IA-11)
