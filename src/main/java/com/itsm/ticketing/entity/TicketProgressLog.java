@@ -34,8 +34,12 @@ public class TicketProgressLog {
     @Column(name = "to_status", nullable = false)
     private TicketStatus toStatus;
 
+    /**
+     * The user who triggered this status change.
+     * {@code null} for system-initiated changes (e.g. auto-close scheduler).
+     */
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "changed_by", nullable = false)
+    @JoinColumn(name = "changed_by", nullable = true)
     private User changedBy;
 
     @Column(name = "notes", columnDefinition = "TEXT")

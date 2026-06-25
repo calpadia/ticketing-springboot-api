@@ -87,6 +87,21 @@ public class DatabaseMigrationConfig {
                         """);
                 log.info("ticket_user_reads table created or already exists");
 
+                // -------------------------------------------------------------
+                // ticket_progress_logs.changed_by — make nullable to support
+                // system-initiated status changes (e.g. auto-close scheduler).
+                // Uses ALTER COLUMN … DROP NOT NULL which is idempotent on
+                // PostgreSQL (no-op if already nullable).
+                // -------------------------------------------------------------
+                try {
+                    stmt.execute(
+                            "ALTER TABLE ticket_progress_logs "
+                                    + "ALTER COLUMN changed_by DROP NOT NULL");
+                    log.info("ticket_progress_logs.changed_by nullable migration OK");
+                } catch (Exception ignored) {
+                    log.debug("ticket_progress_logs.changed_by nullable migration skipped (already nullable or not applicable)");
+                }
+
             } catch (Exception e) {
                 log.warn("Role constraint migration skipped or partially applied: {}", e.getMessage());
             }
