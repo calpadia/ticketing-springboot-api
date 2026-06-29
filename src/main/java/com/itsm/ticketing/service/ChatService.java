@@ -70,10 +70,10 @@ public class ChatService {
         // Access control
         validateTicketAccess(ticket, sender);
 
-        // Block upload if ticket is RESOLVED or CLOSED
-        if (ticket.getStatus() == TicketStatus.RESOLVED || ticket.getStatus() == TicketStatus.CLOSED) {
+        // Block upload only if ticket is CLOSED (RESOLVED masih diizinkan - Opsi Diskusi Terbuka)
+        if (ticket.getStatus() == TicketStatus.CLOSED) {
             throw new IllegalStateException(
-                    "Tidak bisa upload file. Ticket sudah berstatus: " + ticket.getStatus());
+                    "Tidak bisa upload file. Ticket sudah berstatus CLOSED.");
         }
 
         // Validate file security (CWE-434: Unrestricted Upload)
@@ -189,7 +189,7 @@ public class ChatService {
      * Send a new chat message linked to a ticket.
      * Rules:
      * - USER can only send messages on tickets belonging to their client
-     * - Chat is blocked if ticket status is RESOLVED or CLOSED
+     * - Chat is blocked ONLY if ticket status is CLOSED (RESOLVED diizinkan - Opsi Diskusi Terbuka)
      * - Message must have content or attachments (or both)
      *
      * @param request the chat message request containing ticketId, content, and optional attachmentIds
@@ -205,10 +205,10 @@ public class ChatService {
         // Access control: USER can only chat on their client's tickets
         validateTicketAccess(ticket, sender);
 
-        // Block chat if ticket is RESOLVED or CLOSED
-        if (ticket.getStatus() == TicketStatus.RESOLVED || ticket.getStatus() == TicketStatus.CLOSED) {
+        // Block chat HANYA jika tiket sudah CLOSED (RESOLVED masih diizinkan - Opsi Diskusi Terbuka)
+        if (ticket.getStatus() == TicketStatus.CLOSED) {
             throw new IllegalStateException(
-                    "Chat tidak bisa dilanjutkan. Ticket sudah berstatus: " + ticket.getStatus());
+                    "Chat tidak bisa dilanjutkan. Ticket sudah berstatus CLOSED.");
         }
 
         // Validate: message must have content or attachments

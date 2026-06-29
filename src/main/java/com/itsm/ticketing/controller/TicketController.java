@@ -3,6 +3,7 @@ package com.itsm.ticketing.controller;
 import com.itsm.ticketing.dto.CreateTicketRequest;
 import com.itsm.ticketing.dto.TicketProgressLogResponse;
 import com.itsm.ticketing.dto.TicketResponse;
+import com.itsm.ticketing.dto.UpdateTicketPriorityRequest;
 import com.itsm.ticketing.dto.UpdateTicketStatusRequest;
 import com.itsm.ticketing.entity.MaintenanceType;
 import com.itsm.ticketing.entity.Priority;
@@ -95,6 +96,20 @@ public class TicketController {
             @Valid @RequestBody UpdateTicketStatusRequest request) {
         log.info("PUT /api/v1/tickets/{}/status - Updating status to {}", id, request.getStatus());
         TicketResponse response = ticketService.updateTicketStatus(id, request);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Update the priority (ticket level) of a ticket.
+     * Allowed roles: SUPPORT, ADMIN.
+     * Blocked if ticket is already CLOSED or RESOLVED.
+     */
+    @PutMapping("/{id}/priority")
+    public ResponseEntity<TicketResponse> updateTicketPriority(
+            @PathVariable Long id,
+            @Valid @RequestBody UpdateTicketPriorityRequest request) {
+        log.info("PUT /api/v1/tickets/{}/priority - Updating priority to {}", id, request.getPriority());
+        TicketResponse response = ticketService.updateTicketPriority(id, request);
         return ResponseEntity.ok(response);
     }
 

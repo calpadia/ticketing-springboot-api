@@ -5,6 +5,7 @@ import com.itsm.ticketing.dto.CreateTicketRequest;
 import com.itsm.ticketing.dto.TicketAssignmentResponse;
 import com.itsm.ticketing.dto.TicketProgressLogResponse;
 import com.itsm.ticketing.dto.TicketResponse;
+import com.itsm.ticketing.dto.UpdateTicketPriorityRequest;
 import com.itsm.ticketing.dto.UpdateTicketStatusRequest;
 import com.itsm.ticketing.entity.*;
 import com.itsm.ticketing.event.TicketEvent;
@@ -482,6 +483,78 @@ public class TicketService {
         TicketResponse response = mapToResponse(updatedTicket, attachments);
 
         // Broadcast to WebSocket subscribers after transaction commits
+        eventPublisher.publishEvent(
+                new TicketEvent(this, TicketEvent.Type.STATUS_CHANGED, response));
+
+        return response;
+    }
+
+    /**
+     * Update the priority (ticket level) of a ticket and record the change in the progress log.
+     * <p>
+     * Business rules:
+     * <ul>
+     *   <li>Ticket must NOT be CLOSED or RESOLVED</li>
+     *   <li>The requesting user (changedBy) must exist</li>
+     *   <li>Change is persisted to {@code ticket_progress_logs} using the notes field for audit trail</li>
+     * </ul>
+     *
+     * @param ticketId the ticket ID
+     * @param request  the priority update request
+     * @return the updated ticket response
+     */
+    @Transactional
+    public TicketResponse updateTicketPriority(Long ticketId, UpdateTicketPriorityRequest request) {
+        log.info("Updating ticket {} priority to {}", ticketId, request.getPriority());
+
+        Ticket ticket = ticketRepository.findById(ticketId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Ticket not found with ID: " + ticketId));
+
+        if (ticket.getStatus() == TicketStatus.CLOSED || ticket.getStatus() == TicketStatus.RESOLVED) {
+            throw new IllegalStateException(
+                    "Tidak dapat mengubah level tiket yang sudah selesai atau ditutup. Status saat ini: "
+                            + ticket.getStatus());
+        }
+
+        User changedBy = userRepository.findById(request.getChangedBy())
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "User not found with ID: " + request.getChangedBy()));
+
+        Priority oldPriority = ticket.getPriority();
+        Priority newPriority = request.getPriority();
+
+        if (oldPriority == newPriority) {
+            throw new IllegalArgumentException(
+                    "Ticket sudah berada di level " + oldPriority + ". Tidak ada perubahan.");
+        }
+
+        ticket.setPriority(newPriority);
+        Ticket updatedTicket = ticketRepository.save(ticket);
+
+        // Audit trail: embed priority change in notes field of TicketProgressLog
+        String auditNotes = String.format("[PRIORITY CHANGE] %s -> %s", oldPriority, newPriority);
+        if (request.getNotes() != null && !request.getNotes().isBlank()) {
+            auditNotes += " | " + request.getNotes().trim();
+        }
+
+        TicketProgressLog progressLog = TicketProgressLog.builder()
+                .ticket(ticket)
+                .fromStatus(ticket.getStatus())
+                .toStatus(ticket.getStatus())
+                .changedBy(changedBy)
+                .notes(auditNotes)
+                .build();
+        progressLogRepository.save(progressLog);
+
+        log.info("Ticket {} priority updated: {} -> {} by user {}",
+                ticket.getTicketNumber(), oldPriority, newPriority, changedBy.getName());
+
+        List<AttachmentResponse> attachments =
+                fileStorageService.getAttachmentsByTicketId(ticketId);
+        TicketResponse response = mapToResponse(updatedTicket, attachments);
+
+        // Broadcast priority change event to WebSocket subscribers
         eventPublisher.publishEvent(
                 new TicketEvent(this, TicketEvent.Type.STATUS_CHANGED, response));
 
