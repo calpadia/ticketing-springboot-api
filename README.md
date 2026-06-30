@@ -26,6 +26,8 @@ Sistem ticketing untuk manajemen IT Service Management (ITSM) berbasis B2B. Back
   - [SLA Report API](#-sla-report-api-admin--user)
   - [Chat API (WebSocket + REST)](#-chat-api-websocket--rest)
   - [Chat Attachment API](#-chat-attachment-api)
+  - [Notification API](#-notification-api)
+  - [Ticket Worklog API](#-ticket-worklog-api)
 - [Enum Reference](#-enum-reference)
 - [Error Handling](#-error-handling)
 
@@ -35,7 +37,7 @@ Sistem ticketing untuk manajemen IT Service Management (ITSM) berbasis B2B. Back
 
 | Teknologi | Versi |
 |-----------|-------|
-| Java | 17+ |
+| Java | 22 |
 | Spring Boot | 3.2.5 |
 | Spring Security | 6.x |
 | JWT (JJWT) | 0.12.6 |
@@ -49,7 +51,7 @@ Sistem ticketing untuk manajemen IT Service Management (ITSM) berbasis B2B. Back
 
 ## 📌 Prasyarat
 
-- **JDK 17** atau lebih baru
+- **JDK 22** atau lebih baru
 - **Maven 3.9+**
 - **PostgreSQL** database (atau Supabase)
 
@@ -68,7 +70,7 @@ cd ticketing-springboot-api
 mvn spring-boot:run
 ```
 
-Aplikasi akan berjalan di `http://localhost:8080`
+Aplikasi akan berjalan di `http://localhost:8082`
 
 ---
 
@@ -78,7 +80,7 @@ Edit file `src/main/resources/application.properties`:
 
 ```properties
 # Database
-spring.datasource.url=jdbc:postgresql://localhost:5432/ticketing_db
+spring.datasource.url=jdbc:postgresql://localhost:5432/ticketing
 spring.datasource.username=postgres
 spring.datasource.password=your_password
 
@@ -88,11 +90,19 @@ spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.PostgreSQLDialect
 spring.jpa.show-sql=true
 
 # Server
-server.port=8080
+server.port=8082
 
 # JWT Configuration
 jwt.secret=<your-base64-encoded-256-bit-secret-key>
 jwt.expiration=7200000
+
+# CORS allowed origins (comma-separated)
+security.cors.allowed-origins=http://localhost:3000,http://localhost:5173
+
+# File upload
+file.upload-dir=./uploads
+spring.servlet.multipart.max-file-size=10MB
+spring.servlet.multipart.max-request-size=50MB
 ```
 
 ---
@@ -177,7 +187,7 @@ TECHNICAL_SUPPORT mengerjakan ticket
 
 ## 📡 API Endpoints
 
-**Base URL:** `http://localhost:8080`
+**Base URL:** `http://localhost:8082`
 
 ### Ringkasan Seluruh API
 
@@ -261,6 +271,13 @@ TECHNICAL_SUPPORT mengerjakan ticket
 | **CHAT ATTACHMENT** | | | |
 | `POST` | `/api/v1/chat/upload` | Upload file untuk chat | ADMIN, SUPPORT, TECHNICAL_SUPPORT, USER |
 | `GET` | `/api/v1/chat/attachments/{id}/download` | Download file chat | ADMIN, SUPPORT, TECHNICAL_SUPPORT, USER |
+| **NOTIFICATION** | | | |
+| `GET` | `/api/v1/notifications/unread-count` | Jumlah notif belum dibaca | All authenticated |
+| `POST` | `/api/v1/tickets/{id}/read` | Tandai ticket sudah dibaca | All authenticated |
+| **WORKLOG** | | | |
+| `POST` | `/api/v1/tickets/{id}/worklogs` | Mulai timer worklog | ADMIN, SUPPORT, TECHNICAL_SUPPORT |
+| `GET` | `/api/v1/tickets/{id}/worklogs` | Ambil semua worklog ticket | All authenticated |
+| `PUT` | `/api/v1/tickets/{id}/worklogs/{wId}/stop` | Stop timer worklog | ADMIN, SUPPORT, TECHNICAL_SUPPORT |
 
 ---
 
@@ -1319,6 +1336,150 @@ curl -H "Authorization: Bearer <TOKEN>" \
 
 ---
 
+### 🔔 Notification API
+
+> ✅ Dapat diakses oleh semua role yang sudah login. Digunakan untuk menampilkan badge notifikasi di frontend tanpa polling — cukup panggil ulang saat menerima event WebSocket.
+
+#### `GET /api/v1/notifications/unread-count` — Jumlah Notifikasi Belum Dibaca
+
+Mengembalikan jumlah ticket baru yang belum dibuka dan pesan chat yang belum dibaca, dihitung berdasarkan hak akses user yang login.
+
+```bash
+curl -H "Authorization: Bearer <TOKEN>" \
+  http://localhost:8082/api/v1/notifications/unread-count
+```
+
+**Response — `200 OK`:**
+```json
+{
+  "unreadTickets": 3,
+  "unreadMessages": 7,
+  "total": 10
+}
+```
+
+| Field | Keterangan |
+|-------|------------|
+| `unreadTickets` | Ticket baru yang belum pernah dibuka user |
+| `unreadMessages` | Pesan chat baru di ticket yang sudah pernah dibuka |
+| `total` | `unreadTickets + unreadMessages` |
+
+#### `POST /api/v1/tickets/{ticketId}/read` — Tandai Ticket Sudah Dibaca
+
+Dipanggil saat user membuka halaman detail ticket. Me-reset watermark `last_read_at` di database sehingga badge notifikasi untuk ticket tersebut hilang.
+
+```bash
+curl -X POST -H "Authorization: Bearer <TOKEN>" \
+  http://localhost:8082/api/v1/tickets/1/read
+```
+
+**Response — `200 OK`** (body kosong)
+
+> 💡 Panggil endpoint ini setiap kali halaman detail ticket dibuka, bukan hanya saat pertama kali. Ini memastikan pesan-pesan chat baru juga tertandai terbaca.
+
+---
+
+### ⏱ Ticket Worklog API
+
+> ✅ Worklog adalah **live timer** untuk mencatat waktu pengerjaan ticket secara nyata.
+> - **Start/Stop timer**: ADMIN, SUPPORT, TECHNICAL_SUPPORT
+> - **Lihat worklog**: semua role yang punya akses ke ticket
+>
+> Jika `targetUserId` disertakan saat start, worklog dicatat atas nama user tersebut (misal: SUPPORT memulai timer untuk TECHNICAL_SUPPORT).
+
+**Base path:** `/api/v1/tickets/{ticketId}/worklogs`
+
+#### `POST /api/v1/tickets/{ticketId}/worklogs` — Mulai Worklog
+
+**Request Body (optional):**
+```json
+{
+  "targetUserId": 5,
+  "notes": "Mulai investigasi koneksi database"
+}
+```
+
+| Field | Tipe | Wajib | Keterangan |
+|-------|------|-------|------------|
+| `targetUserId` | `number` | ❌ | ID user yang bekerja (default: user yang login) |
+| `notes` | `string` | ❌ | Catatan awal worklog |
+
+**Response — `201 Created`:**
+```json
+{
+  "id": 1,
+  "ticketId": 1,
+  "ticketNumber": "TKT-20260630-001",
+  "userId": 5,
+  "userName": "Budi Teknisi",
+  "startedAt": "2026-06-30T10:00:00",
+  "stoppedAt": null,
+  "loggedDurationSeconds": null,
+  "notes": "Mulai investigasi koneksi database"
+}
+```
+
+```bash
+curl -X POST http://localhost:8082/api/v1/tickets/1/worklogs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <TOKEN>" \
+  -d '{"targetUserId": 5, "notes": "Mulai investigasi"}'
+```
+
+#### `GET /api/v1/tickets/{ticketId}/worklogs` — Ambil Semua Worklog Ticket
+
+```bash
+curl -H "Authorization: Bearer <TOKEN>" \
+  http://localhost:8082/api/v1/tickets/1/worklogs
+```
+
+**Response — `200 OK`:**
+```json
+[
+  {
+    "id": 1,
+    "ticketId": 1,
+    "ticketNumber": "TKT-20260630-001",
+    "userId": 5,
+    "userName": "Budi Teknisi",
+    "startedAt": "2026-06-30T10:00:00",
+    "stoppedAt": "2026-06-30T11:30:00",
+    "loggedDurationSeconds": 5400,
+    "notes": "Investigasi selesai, masalah ditemukan di konfigurasi firewall"
+  }
+]
+```
+
+#### `PUT /api/v1/tickets/{ticketId}/worklogs/{worklogId}/stop` — Stop Worklog
+
+**Request Body:**
+```json
+{
+  "stoppedAt": "2026-06-30T11:30:00",
+  "loggedDurationSeconds": 5400,
+  "notes": "Investigasi selesai, masalah ditemukan di konfigurasi firewall"
+}
+```
+
+| Field | Tipe | Wajib | Keterangan |
+|-------|------|-------|------------|
+| `stoppedAt` | `string` (ISO 8601) | ✅ | Waktu berhenti |
+| `loggedDurationSeconds` | `number` | ✅ | Durasi dalam detik (dari client timer) |
+| `notes` | `string` | ❌ | Catatan akhir worklog |
+
+```bash
+curl -X PUT http://localhost:8082/api/v1/tickets/1/worklogs/1/stop \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <TOKEN>" \
+  -d '{
+    "stoppedAt": "2026-06-30T11:30:00",
+    "loggedDurationSeconds": 5400,
+    "notes": "Investigasi selesai"
+  }'
+```
+
+---
+
 ## 📖 Enum Reference
 
 ### Role
@@ -1402,8 +1563,13 @@ ticketing-backend/
     │   ├── ClientController.java          # CRUD client (ADMIN)
     │   ├── ClientQuotaController.java     # CRUD kuota (ADMIN)
     │   ├── MyQuotaController.java         # User's own quota (ADMIN+USER)
+    │   ├── NotificationController.java    # Unread count & mark-as-read
+    │   ├── ProjectController.java         # CRUD project (ADMIN+USER)
     │   ├── ServiceCatalogController.java  # CRUD service catalog per client (ADMIN)
-    │   ├── TicketController.java          # CRUD ticket (ADMIN+USER)
+    │   ├── SlaReportController.java       # SLA report (ADMIN+USER)
+    │   ├── TicketAssignmentController.java# Assign/unassign/reassign ticket
+    │   ├── TicketController.java          # CRUD ticket + export CSV
+    │   ├── TicketWorklogController.java   # Live worklog timer (ADMIN+SUPPORT+TECHNICAL_SUPPORT)
     │   └── UserController.java            # CRUD user (ADMIN)
     ├── dto/
     │   ├── ApiErrorResponse.java
@@ -1545,13 +1711,17 @@ stompClient.subscribe('/topic/tickets/new', (msg) => {
 4.  Buat Kuota      →  POST /api/v1/client-quotas   (token ADMIN)
 5.  Register User   →  POST /api/v1/auth/register   (role: USER, clientId)
 6.  Login User      →  POST /api/v1/auth/login      (dapatkan token + clientId)
-7.  Cek Kuota       →  GET /api/v1/my-quotas         (token USER → kuota sendiri)
-8.  Buat Ticket     →  POST /api/v1/tickets          (token USER/ADMIN)
-9.  Connect Chat    →  WebSocket ws://localhost:8080/ws (STOMP + JWT)
-10. Kirim Pesan     →  STOMP /app/chat.send           (real-time)
-11. Upload File     →  POST /api/v1/chat/upload       (REST, dapat attachmentId)
-12. Kirim + File    →  STOMP /app/chat.send           ({ attachmentIds: [id] })
-13. Histori Chat    →  GET /api/v1/chat/{ticketId}    (REST, termasuk attachments)
+7.  Cek Kuota       →  GET /api/v1/my-quotas              (token USER → kuota sendiri)
+8.  Buat Ticket     →  POST /api/v1/tickets               (token USER/ADMIN)
+9.  Connect Chat    →  WebSocket ws://localhost:8082/ws    (STOMP + JWT)
+10. Kirim Pesan     →  STOMP /app/chat.send               (real-time)
+11. Upload File     →  POST /api/v1/chat/upload           (REST, dapat attachmentId)
+12. Kirim + File    →  STOMP /app/chat.send               ({ attachmentIds: [id] })
+13. Histori Chat    →  GET /api/v1/chat/{ticketId}        (REST, termasuk attachments)
+14. Cek Notifikasi  →  GET /api/v1/notifications/unread-count (setelah terima WS event)
+15. Buka Ticket     →  POST /api/v1/tickets/{id}/read     (reset badge notifikasi)
+16. Start Worklog   →  POST /api/v1/tickets/{id}/worklogs (mulai timer)
+17. Stop Worklog    →  PUT /api/v1/tickets/{id}/worklogs/{wId}/stop
 ```
 
 ---
