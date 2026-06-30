@@ -184,7 +184,11 @@ public class SlaReportService {
     /**
      * Compute met/missed/pending counts and average hours.
      *
-     * @param tickets   subset to evaluate
+     * <p>Also populates {@code metTickets}, {@code missedTickets}, and
+     * {@code pendingTickets} with lightweight {@link TicketSlaRef} objects so
+     * callers can drill down into which tickets fall into each SLA bucket.</p>
+     *
+     * @param tickets    subset to evaluate
      * @param isResponse {@code true} = response metric, {@code false} = resolution metric
      */
     private SlaMetric computeMetric(List<Ticket> tickets, boolean isResponse) {
@@ -192,6 +196,10 @@ public class SlaReportService {
         double totalHours = 0;
         long withEvent = 0;
         LocalDateTime now = LocalDateTime.now();
+
+        List<TicketSlaRef> metList     = new ArrayList<>();
+        List<TicketSlaRef> missedList  = new ArrayList<>();
+        List<TicketSlaRef> pendingList = new ArrayList<>();
 
         for (Ticket t : tickets) {
             Priority p = t.getPriority();
@@ -204,21 +212,31 @@ public class SlaReportService {
 
             if (startAt == null) continue;
 
+            TicketSlaRef ref = TicketSlaRef.builder()
+                    .id(t.getId())
+                    .ticketNumber(t.getTicketNumber())
+                    .title(t.getTitle())
+                    .build();
+
             if (eventAt != null) {
                 double hours = Duration.between(startAt, eventAt).toMinutes() / 60.0;
                 totalHours += hours;
                 withEvent++;
                 if (hours <= targetHours) {
                     met++;
+                    metList.add(ref);
                 } else {
                     missed++;
+                    missedList.add(ref);
                 }
             } else {
                 long elapsedHours = Duration.between(startAt, now).toHours();
                 if (elapsedHours > targetHours) {
                     missed++; // in-flight breach
+                    missedList.add(ref);
                 } else {
                     pending++;
+                    pendingList.add(ref);
                 }
             }
         }
@@ -235,6 +253,9 @@ public class SlaReportService {
                 .pending(pending)
                 .compliancePercent(compliance)
                 .averageHours(avgHours)
+                .metTickets(metList)
+                .missedTickets(missedList)
+                .pendingTickets(pendingList)
                 .build();
     }
 

@@ -5,9 +5,17 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * Aggregated SLA performance metric (response or resolution).
  * Counts and percentages relative to the total set of tickets evaluated.
+ *
+ * <p>The {@code metTickets}, {@code missedTickets}, and {@code pendingTickets}
+ * lists carry lightweight {@link TicketSlaRef} objects so the frontend can
+ * drill down into the individual tickets behind each count without making
+ * additional API calls.</p>
  */
 @Data
 @NoArgsConstructor
@@ -29,4 +37,17 @@ public class SlaMetric {
 
     /** Average actual hours from createdAt to event (response/resolution). Only over tickets with the event. */
     private double averageHours;
+
+    /** Lightweight references to tickets that met the SLA — for frontend drill-down. */
+    @Builder.Default
+    private List<TicketSlaRef> metTickets = new ArrayList<>();
+
+    /** Lightweight references to tickets that missed the SLA — for frontend drill-down. */
+    @Builder.Default
+    private List<TicketSlaRef> missedTickets = new ArrayList<>();
+
+    /** Lightweight references to tickets still pending SLA adjudication — for frontend drill-down. */
+    @Builder.Default
+    private List<TicketSlaRef> pendingTickets = new ArrayList<>();
 }
+
