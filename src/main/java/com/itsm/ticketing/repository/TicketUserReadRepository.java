@@ -147,7 +147,7 @@ public interface TicketUserReadRepository extends JpaRepository<TicketUserRead, 
      * @return raw rows ordered by sentAt DESC
      */
     @Query("""
-            SELECT t.id, t.ticketNumber, t.client.name, m.content, m.sentAt
+            SELECT t.id, t.ticketNumber, t.client.companyName, m.content, m.sentAt
             FROM ChatMessage m
             JOIN m.ticket t
             WHERE t.id IN :accessibleTicketIds
