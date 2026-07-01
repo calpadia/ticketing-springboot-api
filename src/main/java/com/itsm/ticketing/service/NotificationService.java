@@ -1,6 +1,7 @@
 package com.itsm.ticketing.service;
 
 import com.itsm.ticketing.dto.UnreadCountResponse;
+import com.itsm.ticketing.dto.UnreadNotificationDetail;
 import com.itsm.ticketing.entity.*;
 import com.itsm.ticketing.exception.ResourceNotFoundException;
 import com.itsm.ticketing.repository.TicketAssignmentRepository;
@@ -13,8 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -68,6 +68,7 @@ public class NotificationService {
                     .unreadTickets(0)
                     .unreadMessages(0)
                     .total(0)
+                    .details(Collections.emptyList())
                     .build();
         }
 
@@ -79,13 +80,17 @@ public class NotificationService {
 
         long total = unreadTickets + unreadMessages;
 
-        log.debug("Notification count for user {}: tickets={}, messages={}, total={}",
-                currentUser.getEmail(), unreadTickets, unreadMessages, total);
+        List<UnreadNotificationDetail> details = buildDetails(
+                currentUser.getId(), accessibleTicketIds);
+
+        log.debug("Notification count for user {}: tickets={}, messages={}, total={}, details={}",
+                currentUser.getEmail(), unreadTickets, unreadMessages, total, details.size());
 
         return UnreadCountResponse.builder()
                 .unreadTickets(unreadTickets)
                 .unreadMessages(unreadMessages)
                 .total(total)
+                .details(details)
                 .build();
     }
 
@@ -126,6 +131,59 @@ public class NotificationService {
     // ========================================================================
     // PRIVATE HELPERS
     // ========================================================================
+
+    /**
+     * Builds the per-ticket unread notification detail list.
+     *
+     * <p>Fetches all unread message rows (ordered sentAt DESC), then groups them
+     * by ticketId — keeping only the first (latest) row per ticket — to produce
+     * one {@link UnreadNotificationDetail} entry per ticket that has unread messages.</p>
+     *
+     * @param userId              the current user's ID
+     * @param accessibleTicketIds the ticket IDs this user can access
+     * @return list of detail entries, one per ticket with unread messages, latest-message-first
+     */
+    private List<UnreadNotificationDetail> buildDetails(Long userId, List<Long> accessibleTicketIds) {
+        List<Object[]> rows = ticketUserReadRepository
+                .findUnreadMessageDetails(userId, accessibleTicketIds);
+
+        // Group by ticketId, keeping only the first (latest) row per ticket.
+        // The query already orders by sentAt DESC so the first entry per ticket
+        // is the most recent unread message.
+        Map<Long, UnreadNotificationDetail> seen = new LinkedHashMap<>();
+        for (Object[] row : rows) {
+            Long ticketId     = (Long)          row[0];
+            String ticketNum  = (String)         row[1];
+            String clientName = (String)         row[2];
+            String content    = (String)         row[3];
+            LocalDateTime sentAt = (LocalDateTime) row[4];
+
+            if (!seen.containsKey(ticketId)) {
+                String preview = buildPreview(content);
+                seen.put(ticketId, UnreadNotificationDetail.builder()
+                        .ticketId(ticketId)
+                        .ticketNumber(ticketNum)
+                        .senderName(clientName)
+                        .messagePreview(preview)
+                        .createdAt(sentAt)
+                        .build());
+            }
+        }
+        return new ArrayList<>(seen.values());
+    }
+
+    /**
+     * Truncates the raw message content to a short preview suitable for a
+     * notification dropdown (max 80 chars, appended with "..." if truncated).
+     * Returns a placeholder for attachment-only messages where {@code content} is null.
+     */
+    private static String buildPreview(String content) {
+        if (content == null || content.isBlank()) {
+            return "[Attachment]";
+        }
+        String trimmed = content.trim();
+        return trimmed.length() <= 80 ? trimmed : trimmed.substring(0, 80) + "...";
+    }
 
     /**
      * Returns the list of ticket IDs accessible to the given user,
