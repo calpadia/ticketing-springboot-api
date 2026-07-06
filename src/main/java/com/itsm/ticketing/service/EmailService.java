@@ -23,11 +23,14 @@ public class EmailService {
     private final JavaMailSender javaMailSender;
     private final TemplateEngine templateEngine;
 
-    @Value("${mail.from.address:no-reply@yourcompany.com}")
+    @Value("${spring.mail.username}")
     private String fromAddress;
 
-    @Value("${mail.from.name:ITSM Ticketing System}")
+    @Value("${mail.from.name}")
     private String fromName;
+
+    @Value("${app.frontend.url}")
+    private String frontendUrl;
 
     /**
      * Send an email asynchronously when a new ticket is created.
@@ -46,6 +49,8 @@ public class EmailService {
                     MimeMessageHelper.MULTIPART_MODE_MIXED_RELATED,
                     StandardCharsets.UTF_8.name());
 
+            String ticketUrl = frontendUrl + "/tickets/" + ticket.getId();
+
             // Prepare template context
             Context context = new Context();
             context.setVariable("ticketNumber", ticket.getTicketNumber());
@@ -54,6 +59,7 @@ public class EmailService {
             context.setVariable("status", ticket.getStatus().name());
             context.setVariable("requesterName", ticket.getRequester().getName());
             context.setVariable("clientName", ticket.getClient().getCompanyName());
+            context.setVariable("ticketUrl", ticketUrl);
 
             // Process HTML template
             String htmlContent = templateEngine.process("ticket-created", context);
@@ -62,8 +68,8 @@ public class EmailService {
             helper.setTo(toEmail);
             helper.setSubject("New Ticket Created: [" + ticket.getTicketNumber() + "] " + ticket.getTitle());
             
-            String plainText = String.format("Hello,\n\nA new ticket has been created.\nTicket Number: %s\nTitle: %s\nPriority: %s\nStatus: %s\nRequester: %s\nClient: %s",
-                    ticket.getTicketNumber(), ticket.getTitle(), ticket.getPriority().name(), ticket.getStatus().name(), ticket.getRequester().getName(), ticket.getClient().getCompanyName());
+            String plainText = String.format("Hello,\n\nA new ticket has been created.\nTicket Number: %s\nTitle: %s\nPriority: %s\nStatus: %s\nRequester: %s\nClient: %s\n\nView Ticket: %s",
+                    ticket.getTicketNumber(), ticket.getTitle(), ticket.getPriority().name(), ticket.getStatus().name(), ticket.getRequester().getName(), ticket.getClient().getCompanyName(), ticketUrl);
             
             helper.setText(plainText, htmlContent); // first arg is plain text, second arg is html
 
@@ -93,12 +99,15 @@ public class EmailService {
                     MimeMessageHelper.MULTIPART_MODE_MIXED_RELATED,
                     StandardCharsets.UTF_8.name());
 
+            String ticketUrl = frontendUrl + "/tickets/" + ticket.getId();
+
             Context context = new Context();
             context.setVariable("ticketNumber", ticket.getTicketNumber());
             context.setVariable("title", ticket.getTitle());
             context.setVariable("priority", ticket.getPriority().name());
             context.setVariable("clientName", ticket.getClient().getCompanyName());
             context.setVariable("assignerName", assignerName);
+            context.setVariable("ticketUrl", ticketUrl);
 
             String htmlContent = templateEngine.process("ticket-assigned", context);
 
@@ -106,8 +115,8 @@ public class EmailService {
             helper.setTo(toEmail);
             helper.setSubject("Ticket Assigned to You: [" + ticket.getTicketNumber() + "] " + ticket.getTitle());
             
-            String plainText = String.format("Hello,\n\nA ticket has just been assigned to you by %s.\nTicket Number: %s\nTitle: %s\nPriority: %s\nClient: %s",
-                    assignerName, ticket.getTicketNumber(), ticket.getTitle(), ticket.getPriority().name(), ticket.getClient().getCompanyName());
+            String plainText = String.format("Hello,\n\nA ticket has just been assigned to you by %s.\nTicket Number: %s\nTitle: %s\nPriority: %s\nClient: %s\n\nView Ticket: %s",
+                    assignerName, ticket.getTicketNumber(), ticket.getTitle(), ticket.getPriority().name(), ticket.getClient().getCompanyName(), ticketUrl);
             
             helper.setText(plainText, htmlContent);
 
