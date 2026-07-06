@@ -53,5 +53,12 @@ public class ChatMessage {
     @Builder.Default
     @OneToMany(mappedBy = "chatMessage", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<ChatAttachment> attachments = new ArrayList<>();
+
+    /**
+     * The message this message is replying to (if any).
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "reply_to_id")
+    private ChatMessage replyTo;
 }
 

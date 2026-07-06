@@ -31,5 +31,11 @@ public class ChatMessageRequest {
      * Optional — can be null or empty for text-only messages.
      */
     private List<Long> attachmentIds;
+
+    /**
+     * ID of the message this message is replying to.
+     * Optional.
+     */
+    private Long replyToId;
 }
 

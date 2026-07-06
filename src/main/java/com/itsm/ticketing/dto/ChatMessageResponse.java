@@ -32,5 +32,10 @@ public class ChatMessageResponse {
      * Empty/null for text-only messages.
      */
     private List<ChatAttachmentInfo> attachments;
+
+    /**
+     * ID of the message this message is replying to (if any).
+     */
+    private Long replyToId;
 }
 

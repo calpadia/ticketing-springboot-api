@@ -24,4 +24,7 @@ public class UpdateTicketStatusRequest {
 
     /** Optional notes about the status change */
     private String notes;
+
+    /** Optional summary for when the ticket is resolved or closed */
+    private String resolutionSummary;
 }

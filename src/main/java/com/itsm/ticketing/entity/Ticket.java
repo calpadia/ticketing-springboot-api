@@ -88,4 +88,30 @@ public class Ticket {
      */
     @Column(name = "resolved_at")
     private LocalDateTime resolvedAt;
+
+    /**
+     * User who closed the ticket.
+     * Can be null if closed automatically by the system.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "closed_by")
+    private User closedBy;
+
+    /**
+     * Timestamp when the ticket was closed.
+     */
+    @Column(name = "closed_at")
+    private LocalDateTime closedAt;
+
+    /**
+     * Summary of how the ticket was handled and resolved.
+     */
+    @Column(name = "resolution_summary", columnDefinition = "TEXT")
+    private String resolutionSummary;
+
+    /**
+     * Total handling time in minutes (from createdAt to resolvedAt/closedAt).
+     */
+    @Column(name = "handling_time_minutes")
+    private Long handlingTimeMinutes;
 }

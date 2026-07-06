@@ -392,6 +392,12 @@ public class TicketService {
                 .attachments(attachments)
                 .assignments(assignments)
                 .createdAt(ticket.getCreatedAt())
+                .resolvedAt(ticket.getResolvedAt())
+                .closedById(ticket.getClosedBy() != null ? ticket.getClosedBy().getId() : null)
+                .closedByName(ticket.getClosedBy() != null ? ticket.getClosedBy().getName() : null)
+                .closedAt(ticket.getClosedAt())
+                .resolutionSummary(ticket.getResolutionSummary())
+                .handlingTimeMinutes(ticket.getHandlingTimeMinutes())
                 .isRead(isRead)
                 .unreadMessageCount(unreadMessageCount);
 
@@ -461,6 +467,23 @@ public class TicketService {
         if (newStatus == TicketStatus.RESOLVED && ticket.getResolvedAt() == null) {
             ticket.setResolvedAt(java.time.LocalDateTime.now());
             log.info("SLA: resolvedAt set for ticket {}", ticket.getTicketNumber());
+        }
+
+        if (newStatus == TicketStatus.RESOLVED || newStatus == TicketStatus.CLOSED) {
+            if (request.getResolutionSummary() != null && !request.getResolutionSummary().isBlank()) {
+                ticket.setResolutionSummary(request.getResolutionSummary());
+            }
+            if (newStatus == TicketStatus.CLOSED && ticket.getClosedAt() == null) {
+                ticket.setClosedAt(java.time.LocalDateTime.now());
+                ticket.setClosedBy(changedBy);
+            }
+            
+            // Calculate handling time if we have a resolved/closed timestamp
+            java.time.LocalDateTime endStamp = ticket.getResolvedAt() != null ? ticket.getResolvedAt() : ticket.getClosedAt();
+            if (ticket.getCreatedAt() != null && endStamp != null && ticket.getHandlingTimeMinutes() == null) {
+                long minutes = java.time.Duration.between(ticket.getCreatedAt(), endStamp).toMinutes();
+                ticket.setHandlingTimeMinutes(minutes);
+            }
         }
 
         Ticket updatedTicket = ticketRepository.save(ticket);

@@ -50,6 +50,14 @@ public class TicketResponse {
     private List<TicketAssignmentResponse> assignments;
 
     private LocalDateTime createdAt;
+    private LocalDateTime resolvedAt;
+
+    // Closing details
+    private Long closedById;
+    private String closedByName;
+    private LocalDateTime closedAt;
+    private String resolutionSummary;
+    private Long handlingTimeMinutes;
 
     /**
      * Whether the currently authenticated user has opened (read) this ticket.

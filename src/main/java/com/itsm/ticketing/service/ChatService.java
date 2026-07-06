@@ -220,11 +220,24 @@ public class ChatService {
                     "Pesan harus memiliki konten teks atau lampiran file (atau keduanya)");
         }
 
+        ChatMessage replyTo = null;
+        if (request.getReplyToId() != null) {
+            replyTo = chatMessageRepository.findById(request.getReplyToId())
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "Message to reply not found with id: " + request.getReplyToId()));
+            
+            // Validate replyTo message belongs to the same ticket
+            if (!replyTo.getTicket().getId().equals(ticket.getId())) {
+                throw new IllegalArgumentException("Cannot reply to a message from a different ticket");
+            }
+        }
+
         ChatMessage chatMessage = ChatMessage.builder()
                 .ticket(ticket)
                 .sender(sender)
                 .content(hasContent ? request.getContent() : null)
                 .senderRole(sender.getRole())
+                .replyTo(replyTo)
                 .build();
 
         ChatMessage saved = chatMessageRepository.save(chatMessage);
@@ -408,6 +421,7 @@ public class ChatService {
                 .senderRole(chatMessage.getSenderRole().name())
                 .content(chatMessage.getContent())
                 .sentAt(chatMessage.getSentAt())
+                .replyToId(chatMessage.getReplyTo() != null ? chatMessage.getReplyTo().getId() : null)
                 .build();
     }
 
