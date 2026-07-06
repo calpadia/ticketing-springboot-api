@@ -35,6 +35,7 @@ public class TicketAssignmentService {
     private final TicketRepository ticketRepository;
     private final UserRepository userRepository;
     private final ApplicationEventPublisher eventPublisher;
+    private final EmailService emailService;
 
     /**
      * Assign one or more support engineers to a ticket.
@@ -105,6 +106,9 @@ public class TicketAssignmentService {
 
             log.info("Ticket {} assigned to {} by {}",
                     ticket.getTicketNumber(), supportUser.getName(), assignedBy.getName());
+            
+            // Send email notification to assignee
+            emailService.sendTicketAssignedEmail(supportUser.getEmail(), ticket, assignedBy.getName());
         }
 
         publishAssignedEvent(ticket);

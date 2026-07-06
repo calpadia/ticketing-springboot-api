@@ -70,4 +70,44 @@ public class EmailService {
             log.error("Failed to send email to {}: {}", toEmail, e.getMessage(), e);
         }
     }
+
+    /**
+     * Send an email asynchronously when a ticket is assigned to a support engineer.
+     * Uses Thymeleaf template 'ticket-assigned.html'.
+     *
+     * @param toEmail The recipient email address (assignee)
+     * @param ticket  The ticket that was assigned
+     * @param assignerName The name of the user who assigned the ticket
+     */
+    @Async
+    public void sendTicketAssignedEmail(String toEmail, Ticket ticket, String assignerName) {
+        try {
+            log.info("Preparing to send Ticket Assigned email to: {}", toEmail);
+
+            MimeMessage message = javaMailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message,
+                    MimeMessageHelper.MULTIPART_MODE_MIXED_RELATED,
+                    StandardCharsets.UTF_8.name());
+
+            Context context = new Context();
+            context.setVariable("ticketNumber", ticket.getTicketNumber());
+            context.setVariable("title", ticket.getTitle());
+            context.setVariable("priority", ticket.getPriority().name());
+            context.setVariable("clientName", ticket.getClient().getCompanyName());
+            context.setVariable("assignerName", assignerName);
+
+            String htmlContent = templateEngine.process("ticket-assigned", context);
+
+            helper.setFrom(fromAddress, fromName);
+            helper.setTo(toEmail);
+            helper.setSubject("Ticket Assigned to You: [" + ticket.getTicketNumber() + "] " + ticket.getTitle());
+            helper.setText(htmlContent, true);
+
+            javaMailSender.send(message);
+            log.info("Ticket Assigned email sent successfully to: {}", toEmail);
+
+        } catch (MessagingException | java.io.UnsupportedEncodingException e) {
+            log.error("Failed to send assignment email to {}: {}", toEmail, e.getMessage(), e);
+        }
+    }
 }

@@ -296,6 +296,9 @@ public class TicketService {
                     .build();
 
             assignmentRepository.save(assignment);
+            
+            // Send email notification to auto-assigned support engineer
+            emailService.sendTicketAssignedEmail(supportUser.getEmail(), ticket, "System (Auto-Assign)");
         }
 
         log.info("Auto-assigned {} support engineer(s) to ticket {} (client: {})",
