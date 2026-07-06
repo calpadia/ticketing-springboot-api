@@ -52,6 +52,7 @@ public class TicketService {
     private final ClientSupportService clientSupportService;
     private final ApplicationEventPublisher eventPublisher;
     private final TicketUserReadRepository ticketUserReadRepository;
+    private final EmailService emailService;
 
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMdd");
 
@@ -137,6 +138,12 @@ public class TicketService {
             attachmentResponses = fileStorageService.storeFiles(savedTicket, files);
             log.info("{} file(s) attached to ticket {}", attachmentResponses.size(), ticketNumber);
         }
+
+        // Nudge all clients via WebSocket to update unread counts
+        eventPublisher.publishEvent(new TicketCreatedEvent(this, savedTicket.getId()));
+
+        // Send email notification to requester
+        emailService.sendTicketCreatedEmail(requester.getEmail(), savedTicket);
 
         // 7. Auto-assign support engineers registered to this client
         autoAssignClientSupports(savedTicket, client);
