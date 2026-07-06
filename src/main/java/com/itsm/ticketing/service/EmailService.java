@@ -61,7 +61,11 @@ public class EmailService {
             helper.setFrom(fromAddress, fromName);
             helper.setTo(toEmail);
             helper.setSubject("New Ticket Created: [" + ticket.getTicketNumber() + "] " + ticket.getTitle());
-            helper.setText(htmlContent, true); // true indicates HTML content
+            
+            String plainText = String.format("Hello,\n\nA new ticket has been created.\nTicket Number: %s\nTitle: %s\nPriority: %s\nStatus: %s\nRequester: %s\nClient: %s",
+                    ticket.getTicketNumber(), ticket.getTitle(), ticket.getPriority().name(), ticket.getStatus().name(), ticket.getRequester().getName(), ticket.getClient().getCompanyName());
+            
+            helper.setText(plainText, htmlContent); // first arg is plain text, second arg is html
 
             javaMailSender.send(message);
             log.info("Ticket Created email sent successfully to: {}", toEmail);
@@ -101,7 +105,11 @@ public class EmailService {
             helper.setFrom(fromAddress, fromName);
             helper.setTo(toEmail);
             helper.setSubject("Ticket Assigned to You: [" + ticket.getTicketNumber() + "] " + ticket.getTitle());
-            helper.setText(htmlContent, true);
+            
+            String plainText = String.format("Hello,\n\nA ticket has just been assigned to you by %s.\nTicket Number: %s\nTitle: %s\nPriority: %s\nClient: %s",
+                    assignerName, ticket.getTicketNumber(), ticket.getTitle(), ticket.getPriority().name(), ticket.getClient().getCompanyName());
+            
+            helper.setText(plainText, htmlContent);
 
             javaMailSender.send(message);
             log.info("Ticket Assigned email sent successfully to: {}", toEmail);
