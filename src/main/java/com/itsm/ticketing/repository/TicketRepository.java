@@ -16,9 +16,19 @@ public interface TicketRepository extends JpaRepository<Ticket, Long>,
     Optional<Ticket> findByTicketNumber(String ticketNumber);
 
     /**
+     * Find all tickets, ordered by newest first.
+     */
+    List<Ticket> findAllByOrderByCreatedAtDesc();
+
+    /**
+     * Find tickets by a list of IDs, ordered by newest first.
+     */
+    List<Ticket> findByIdInOrderByCreatedAtDesc(List<Long> ids);
+
+    /**
      * Find all tickets belonging to a specific client.
      */
-    List<Ticket> findByClientId(Long clientId);
+    List<Ticket> findByClientIdOrderByCreatedAtDesc(Long clientId);
 
     /**
      * Count all tickets created on the current date (for ticket number generation).

@@ -63,69 +63,7 @@ public class ChatService {
      */
     @Transactional
     public ChatUploadResponse uploadChatFile(Long ticketId, MultipartFile file, User sender) {
-        Ticket ticket = ticketRepository.findById(ticketId)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Ticket not found with id: " + ticketId));
-
-        // Access control
-        validateTicketAccess(ticket, sender);
-
-        // Block upload only if ticket is CLOSED (RESOLVED masih diizinkan - Opsi Diskusi Terbuka)
-        if (ticket.getStatus() == TicketStatus.CLOSED) {
-            throw new IllegalStateException(
-                    "Tidak bisa upload file. Ticket sudah berstatus CLOSED.");
-        }
-
-        // Validate file security (CWE-434: Unrestricted Upload)
-        String validationError = FileValidationUtil.validateFile(file);
-        if (validationError != null) {
-            log.warn("SECURITY_AUDIT: Chat file upload rejected for ticket {}: {}",
-                    ticket.getTicketNumber(), validationError);
-            throw new IllegalArgumentException(validationError);
-        }
-
-        // Store the file with sanitized filename (CWE-22: Path Traversal)
-        String originalFileName = InputSanitizer.sanitizeFilename(file.getOriginalFilename());
-        String storedFileName = UUID.randomUUID().toString() + "_" + originalFileName;
-
-        try {
-            Path uploadPath = Paths.get(uploadDir).toAbsolutePath().normalize();
-            Files.createDirectories(uploadPath);
-            Path targetLocation = uploadPath.resolve(storedFileName).normalize();
-
-            // Path traversal protection (CWE-22)
-            if (!targetLocation.startsWith(uploadPath)) {
-                log.error("SECURITY_AUDIT: Path traversal attempt in chat upload! " +
-                        "Resolved: {} Upload dir: {}", targetLocation, uploadPath);
-                throw new SecurityException("Invalid file path");
-            }
-
-            Files.copy(file.getInputStream(), targetLocation, StandardCopyOption.REPLACE_EXISTING);
-
-            ChatAttachment attachment = ChatAttachment.builder()
-                    .ticket(ticket)
-                    .sender(sender)
-                    .fileName(originalFileName)
-                    .storedFileName(storedFileName)
-                    .fileType(file.getContentType())
-                    .fileSize(file.getSize())
-                    .build();
-
-            ChatAttachment saved = chatAttachmentRepository.save(attachment);
-            log.info("Chat file uploaded: {} -> {} (ticket: {}, user: {})",
-                    originalFileName, storedFileName, ticket.getTicketNumber(), sender.getEmail());
-
-            return ChatUploadResponse.builder()
-                    .id(saved.getId())
-                    .fileName(saved.getFileName())
-                    .fileType(saved.getFileType())
-                    .fileSize(saved.getFileSize())
-                    .downloadUrl("/api/v1/chat/attachments/" + saved.getId() + "/download")
-                    .build();
-
-        } catch (IOException e) {
-            throw new RuntimeException("Could not store file: " + originalFileName, e);
-        }
+        throw new UnsupportedOperationException("Fitur pengiriman lampiran di chat telah dinonaktifkan.");
     }
 
     /**
@@ -211,13 +149,17 @@ public class ChatService {
                     "Chat tidak bisa dilanjutkan. Ticket sudah berstatus CLOSED.");
         }
 
-        // Validate: message must have content or attachments
+        // Validate: message must have content
         boolean hasContent = request.getContent() != null && !request.getContent().isBlank();
         boolean hasAttachments = request.getAttachmentIds() != null && !request.getAttachmentIds().isEmpty();
 
-        if (!hasContent && !hasAttachments) {
+        if (hasAttachments) {
+            throw new UnsupportedOperationException("Fitur pengiriman lampiran di chat telah dinonaktifkan.");
+        }
+
+        if (!hasContent) {
             throw new IllegalArgumentException(
-                    "Pesan harus memiliki konten teks atau lampiran file (atau keduanya)");
+                    "Pesan harus memiliki konten teks.");
         }
 
         ChatMessage replyTo = null;

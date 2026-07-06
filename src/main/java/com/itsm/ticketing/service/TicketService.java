@@ -164,7 +164,7 @@ public class TicketService {
         List<Ticket> tickets;
 
         if (currentUser.getRole() == Role.ADMIN) {
-            tickets = ticketRepository.findAll();
+            tickets = ticketRepository.findAllByOrderByCreatedAtDesc();
         } else if (currentUser.getRole() == Role.SUPPORT
                 || currentUser.getRole() == Role.TECHNICAL_SUPPORT) {
             // SUPPORT / TECHNICAL_SUPPORT: see tickets assigned to them
@@ -176,13 +176,13 @@ public class TicketService {
             if (assignedTicketIds.isEmpty()) {
                 return Collections.emptyList();
             }
-            tickets = ticketRepository.findAllById(assignedTicketIds);
+            tickets = ticketRepository.findByIdInOrderByCreatedAtDesc(assignedTicketIds);
         } else {
             // USER: only see tickets from their own client
             if (currentUser.getClient() == null) {
                 return Collections.emptyList();
             }
-            tickets = ticketRepository.findByClientId(currentUser.getClient().getId());
+            tickets = ticketRepository.findByClientIdOrderByCreatedAtDesc(currentUser.getClient().getId());
         }
 
         return tickets.stream()

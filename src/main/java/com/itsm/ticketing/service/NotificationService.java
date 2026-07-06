@@ -209,7 +209,7 @@ public class NotificationService {
         if (user.getClient() == null) {
             return Collections.emptyList();
         }
-        return ticketRepository.findByClientId(user.getClient().getId())
+        return ticketRepository.findByClientIdOrderByCreatedAtDesc(user.getClient().getId())
                 .stream()
                 .map(Ticket::getId)
                 .collect(Collectors.toList());
