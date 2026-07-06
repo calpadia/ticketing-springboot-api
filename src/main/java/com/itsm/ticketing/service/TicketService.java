@@ -139,9 +139,6 @@ public class TicketService {
             log.info("{} file(s) attached to ticket {}", attachmentResponses.size(), ticketNumber);
         }
 
-        // Nudge all clients via WebSocket to update unread counts
-        eventPublisher.publishEvent(new TicketCreatedEvent(this, savedTicket.getId()));
-
         // Send email notification to requester
         emailService.sendTicketCreatedEmail(requester.getEmail(), savedTicket);
 

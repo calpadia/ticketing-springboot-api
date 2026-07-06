@@ -53,7 +53,7 @@ public class EmailService {
             context.setVariable("priority", ticket.getPriority().name());
             context.setVariable("status", ticket.getStatus().name());
             context.setVariable("requesterName", ticket.getRequester().getName());
-            context.setVariable("clientName", ticket.getClient().getClientName());
+            context.setVariable("clientName", ticket.getClient().getCompanyName());
 
             // Process HTML template
             String htmlContent = templateEngine.process("ticket-created", context);
